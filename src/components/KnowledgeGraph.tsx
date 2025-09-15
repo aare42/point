@@ -408,7 +408,7 @@ export default function KnowledgeGraph({
                       const otherNodeId = sourceId === nodeId ? targetId : sourceId
                       const otherNode = data.nodes.find(n => n.id === otherNodeId)
                       
-                      if (otherNode && otherNode.fx) {
+                      if (otherNode && otherNode.fx && node.fx) {
                         const horizontalDistance = Math.abs(otherNode.fx - node.fx)
                         totalDistance += horizontalDistance
                         // Edge distance calculated
