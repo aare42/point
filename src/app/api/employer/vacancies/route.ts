@@ -3,6 +3,47 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+// POST - create new vacancy
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { name, topicIds } = await req.json()
+
+    if (!name || !Array.isArray(topicIds) || topicIds.length === 0) {
+      return NextResponse.json({ error: 'Name and topic IDs are required' }, { status: 400 })
+    }
+
+    // Create vacancy with topic connections
+    const vacancy = await prisma.vacancy.create({
+      data: {
+        name,
+        authorId: session.user.id,
+        topics: {
+          create: topicIds.map((topicId: string) => ({
+            topicId
+          }))
+        }
+      },
+      include: {
+        topics: {
+          include: {
+            topic: true
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(vacancy)
+  } catch (error) {
+    console.error('Error creating vacancy:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // GET - fetch employer's vacancies
 export async function GET(req: NextRequest) {
   try {
