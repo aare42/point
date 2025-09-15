@@ -36,6 +36,9 @@ next-env.d.ts
 # Vercel
 .vercel
 
+# Railway
+.railway
+
 # IDE
 .vscode/
 .idea/
