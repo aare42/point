@@ -73,90 +73,418 @@ export default function KnowledgeGraph({
 
     svgElement.call(zoomBehavior)
 
-    // Advanced graph layout algorithm
-    const improvedGraphLayout = () => {
-      // 1. Calculate hierarchical levels for prerequisite chains
-      const nodeLevels: Record<string, number> = {}
-      
-      const getNodeLevel = (nodeId: string, currentPath = new Set<string>()): number => {
-        if (currentPath.has(nodeId)) return 0 // Circular dependency
-        if (nodeLevels[nodeId] !== undefined) return nodeLevels[nodeId]
+    // Mathematical graph layout algorithm with planarity optimization
+    const mathematicalGraphLayout = () => {
+      // 1. Find connected components first (DIRECTED graph - follow edges in direction only)
+      const findConnectedComponents = () => {
+        const visited = new Set<string>()
+        const components: string[][] = []
         
-        currentPath.add(nodeId)
-        
-        const nodePrerequisites = data.links
-          .filter(link => (typeof link.target === 'string' ? link.target : link.target.id) === nodeId)
-          .map(link => typeof link.source === 'string' ? link.source : link.source.id)
-        
-        if (nodePrerequisites.length === 0) {
-          nodeLevels[nodeId] = 0
-        } else {
-          const prerequisiteLevels = nodePrerequisites.map(prereqId => getNodeLevel(prereqId, new Set(currentPath)))
-          nodeLevels[nodeId] = Math.max(...prerequisiteLevels) + 1
+        const dfs = (nodeId: string, component: string[]) => {
+          if (visited.has(nodeId)) return
+          visited.add(nodeId)
+          component.push(nodeId)
+          
+          // Follow edges in BOTH directions for connectivity (but respect direction for levels)
+          data.links.forEach(link => {
+            const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+            const targetId = typeof link.target === 'string' ? link.target : link.target.id
+            
+            // Follow outgoing edges (this node is source)
+            if (sourceId === nodeId && !visited.has(targetId)) {
+              dfs(targetId, component)
+            }
+            // Follow incoming edges (this node is target) 
+            if (targetId === nodeId && !visited.has(sourceId)) {
+              dfs(sourceId, component)
+            }
+          })
         }
         
-        currentPath.delete(nodeId)
-        return nodeLevels[nodeId]
+        data.nodes.forEach(node => {
+          if (!visited.has(node.id)) {
+            const component: string[] = []
+            dfs(node.id, component)
+            components.push(component)
+          }
+        })
+        
+        return components
       }
       
-      data.nodes.forEach(node => getNodeLevel(node.id))
-      
-      // 2. Group nodes by type and level for clustering
-      const typeGroups: Record<TopicType, GraphNode[]> = {
-        THEORY: [],
-        PRACTICE: [],
-        PROJECT: []
+      // 2. Calculate hierarchical levels (longest path from sources)
+      const calculateNodeLevels = (componentNodes: string[]) => {
+        const levels: Record<string, number> = {}
+        
+        const getLevel = (nodeId: string, visiting = new Set<string>()): number => {
+          if (visiting.has(nodeId)) {
+            console.warn(`Cycle detected at node ${nodeId}`);
+            return 0; // Cycle detection
+          }
+          if (levels[nodeId] !== undefined) return levels[nodeId]
+          
+          visiting.add(nodeId)
+          
+          const prerequisites = data.links
+            .filter(link => {
+              const targetId = typeof link.target === 'string' ? link.target : link.target.id
+              const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+              return targetId === nodeId && componentNodes.includes(sourceId)
+            })
+            .map(link => typeof link.source === 'string' ? link.source : link.source.id)
+          
+          if (prerequisites.length === 0) {
+            levels[nodeId] = 0
+          } else {
+            const prereqLevels = prerequisites.map(prereqId => getLevel(prereqId, new Set(visiting)))
+            levels[nodeId] = Math.max(...prereqLevels) + 1
+          }
+          
+          visiting.delete(nodeId)
+          return levels[nodeId]
+        }
+        
+        componentNodes.forEach(nodeId => getLevel(nodeId))
+        
+        // FIX: Remove any edges that would create horizontal connections
+        const validLinks = data.links.filter(link => {
+          const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+          const targetId = typeof link.target === 'string' ? link.target : link.target.id
+          
+          if (componentNodes.includes(sourceId) && componentNodes.includes(targetId)) {
+            const sourceLevel = levels[sourceId]
+            const targetLevel = levels[targetId]
+            
+            // Only keep edges where source level < target level (proper DAG)
+            if (sourceLevel >= targetLevel) {
+              console.warn(`Removing invalid edge: ${data.nodes.find(n => n.id === sourceId)?.name} → ${data.nodes.find(n => n.id === targetId)?.name} (levels: ${sourceLevel} → ${targetLevel})`)
+              return false
+            }
+          }
+          return true
+        })
+        
+        // Update the data.links to only include valid edges
+        if (validLinks.length !== data.links.length) {
+          console.log(`Filtered ${data.links.length - validLinks.length} invalid edges`)
+          data.links = validLinks
+        }
+        
+        // Debug: Show level distribution
+        const levelCounts: Record<number, number> = {}
+        Object.values(levels).forEach(level => {
+          levelCounts[level] = (levelCounts[level] || 0) + 1
+        })
+        console.log('Level distribution:', levelCounts)
+        
+        // Debug: Show top-level topics specifically
+        const maxLevel = Math.max(...Object.values(levels))
+        const topLevelNodes = Object.entries(levels)
+          .filter(([_, level]) => level >= maxLevel - 2) // Top 3 levels
+          .map(([nodeId, level]) => {
+            const node = data.nodes.find(n => n.id === nodeId)
+            return `Level ${level}: ${node?.name}`
+          })
+        console.log('Top-level topics:', topLevelNodes)
+        
+        return levels
       }
       
-      data.nodes.forEach(node => {
-        typeGroups[node.type].push(node)
+      // 3. Apply planarity-aware positioning within each level
+      const positionComponent = (componentNodes: string[], componentIndex: number, totalComponents: number) => {
+        const levels = calculateNodeLevels(componentNodes)
+        const maxLevel = Math.max(...Object.values(levels))
+        
+        // Separate components horizontally to avoid intersections
+        const componentWidth = Math.max(1200, width * 0.8) // Back to original width
+        const componentSpacing = componentWidth + 300 // Back to original spacing
+        const componentStartX = componentIndex * componentSpacing + 100
+        
+        // Group nodes by level
+        const nodesByLevel: Record<number, string[]> = {}
+        componentNodes.forEach(nodeId => {
+          const level = levels[nodeId]
+          if (!nodesByLevel[level]) nodesByLevel[level] = []
+          nodesByLevel[level].push(nodeId)
+        })
+        
+        // Position each level with planarity consideration
+        Object.keys(nodesByLevel).forEach(levelStr => {
+          const level = parseInt(levelStr)
+          const nodesInLevel = nodesByLevel[level]
+          
+          // Calculate positions to minimize edge crossings using barycentric method
+          const sortNodesForPlanarity = (nodes: string[]) => {
+            if (level === 0) return nodes // Root level - arbitrary order
+            
+            // For each node, calculate the average X position of its prerequisites
+            const nodeWeights: Record<string, number> = {}
+            
+            nodes.forEach(nodeId => {
+              const prerequisites = data.links
+                .filter(link => {
+                  const targetId = typeof link.target === 'string' ? link.target : link.target.id
+                  return targetId === nodeId
+                })
+                .map(link => typeof link.source === 'string' ? link.source : link.source.id)
+              
+              if (prerequisites.length > 0) {
+                const avgX = prerequisites.reduce((sum, prereqId) => {
+                  const prereqNode = data.nodes.find(n => n.id === prereqId)
+                  return sum + (prereqNode?.fx || 0)
+                }, 0) / prerequisites.length
+                nodeWeights[nodeId] = avgX
+              } else {
+                nodeWeights[nodeId] = 0
+              }
+            })
+            
+            return nodes.sort((a, b) => nodeWeights[a] - nodeWeights[b])
+          }
+          
+          const sortedNodes = sortNodesForPlanarity(nodesInLevel)
+          const minNodeSpacing = 150 // Minimum 150px between node centers
+          const levelSpacing = Math.max(minNodeSpacing, componentWidth / (sortedNodes.length + 1))
+          const levelY = height - 100 - (level * 120) // Back to original vertical spacing
+          
+          sortedNodes.forEach((nodeId, index) => {
+            const node = data.nodes.find(n => n.id === nodeId)
+            if (node) {
+              node.fx = componentStartX + levelSpacing * (index + 1)
+              // REMOVE Y CONSTRAINT for top levels to allow proper separation
+              if (level >= maxLevel - 3) {
+                // For top levels, allow Y to go beyond normal bounds
+                node.fy = levelY
+              } else {
+                node.fy = Math.max(50, Math.min(height - 50, levelY))
+              }
+            }
+          })
+        })
+        
+        // Helper function to calculate node dimensions
+        const getNodeDimensions = (topicName: string) => {
+          const maxCharsPerLine = 14
+          const words = topicName.split(' ')
+          const textLines: string[] = []
+          let currentLine = ''
+          
+          words.forEach(word => {
+            if ((currentLine + word).length <= maxCharsPerLine) {
+              currentLine += (currentLine ? ' ' : '') + word
+            } else {
+              if (currentLine) textLines.push(currentLine)
+              currentLine = word
+            }
+          })
+          if (currentLine) textLines.push(currentLine)
+          
+          const maxLineLength = Math.max(...textLines.map(line => line.length))
+          const nodeWidth = Math.max(maxLineLength * 7 + 16, 80)
+          const nodeHeight = Math.max(textLines.length * 14 + 16, 40)
+          
+          return { width: nodeWidth, height: nodeHeight }
+        }
+        
+        // Helper function to check if two rectangles intersect
+        const rectanglesIntersect = (node1: GraphNode, node2: GraphNode) => {
+          if (!node1.fx || !node1.fy || !node2.fx || !node2.fy) return false
+          
+          const dims1 = getNodeDimensions(node1.name)
+          const dims2 = getNodeDimensions(node2.name)
+          
+          // Rectangle 1 bounds
+          const left1 = node1.fx - dims1.width / 2
+          const right1 = node1.fx + dims1.width / 2
+          const top1 = node1.fy - dims1.height / 2
+          const bottom1 = node1.fy + dims1.height / 2
+          
+          // Rectangle 2 bounds
+          const left2 = node2.fx - dims2.width / 2
+          const right2 = node2.fx + dims2.width / 2
+          const top2 = node2.fy - dims2.height / 2
+          const bottom2 = node2.fy + dims2.height / 2
+          
+          // Check for intersection
+          return !(right1 <= left2 || left1 >= right2 || bottom1 <= top2 || top1 >= bottom2)
+        }
+        
+        // Helper function to check if any nodes intersect with the given nodes
+        const hasIntersections = (nodesToCheck: string[]) => {
+          // Check within the level
+          for (let i = 0; i < nodesToCheck.length; i++) {
+            const node1 = data.nodes.find(n => n.id === nodesToCheck[i])
+            if (!node1) continue
+            
+            for (let j = i + 1; j < nodesToCheck.length; j++) {
+              const node2 = data.nodes.find(n => n.id === nodesToCheck[j])
+              if (!node2) continue
+              
+              if (rectanglesIntersect(node1, node2)) {
+                console.log(`Intersection detected between ${node1.name} and ${node2.name}`)
+                return true
+              }
+            }
+            
+            // Check against ALL other nodes in the graph (not just same component)
+            data.nodes.forEach(otherNode => {
+              if (nodesToCheck.includes(otherNode.id)) return // Skip nodes in current level
+              if (!otherNode.fx || !otherNode.fy) return // Skip unpositioned nodes
+              
+              if (rectanglesIntersect(node1, otherNode)) {
+                console.log(`Intersection detected between ${node1.name} and ${otherNode.name}`)
+                return true
+              }
+            })
+          }
+          return false
+        }
+        
+        // Constrained optimization to minimize edge length while preserving spacing  
+        const optimizeWithConstraints = (componentNodes: string[], compStartX: number, compWidth: number, iterations = 3) => {
+          for (let iter = 0; iter < iterations; iter++) {
+            let improved = false
+            
+            // For each level, try to optimize node order
+            Object.keys(nodesByLevel).forEach(levelStr => {
+              const level = parseInt(levelStr)
+              const nodesInLevel = nodesByLevel[level]
+              
+              if (nodesInLevel.length <= 1) {
+                return // Can't optimize single node
+              }
+              
+              // Calculate spacing for this level - ensure enough for largest nodes
+              const maxNodeWidth = Math.max(...nodesInLevel.map(nodeId => {
+                const node = data.nodes.find(n => n.id === nodeId)
+                return node ? getNodeDimensions(node.name).width : 80
+              }))
+              const minNodeSpacing = Math.max(150, maxNodeWidth + 20) // Back to original spacing
+              const currentLevelSpacing = Math.max(minNodeSpacing, compWidth / (nodesInLevel.length + 1))
+              
+              // Calculate connection clustering score (higher = better clustering)
+              const calculateClusteringScore = (nodeOrder: string[]) => {
+                let totalScore = 0
+                
+                // For each pair of nodes in this level
+                for (let i = 0; i < nodeOrder.length; i++) {
+                  for (let j = i + 1; j < nodeOrder.length; j++) {
+                    const node1Id = nodeOrder[i]
+                    const node2Id = nodeOrder[j]
+                    
+                    // Count connections between these two nodes
+                    const connectionCount = data.links.filter(link => {
+                      const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+                      const targetId = typeof link.target === 'string' ? link.target : link.target.id
+                      
+                      return (sourceId === node1Id && targetId === node2Id) ||
+                             (sourceId === node2Id && targetId === node1Id)
+                    }).length
+                    
+                    if (connectionCount > 0) {
+                      // Calculate distance penalty (closer = better score)
+                      const distance = Math.abs(i - j) // Position distance in the ordering
+                      const proximityBonus = connectionCount * (nodeOrder.length - distance)
+                      totalScore += proximityBonus
+                    }
+                  }
+                }
+                
+                return totalScore
+              }
+              
+              // Go back to simple horizontal distance for debugging
+              const calculateHorizontalDistance = (nodeOrder: string[]) => {
+                let totalDistance = 0
+                nodeOrder.forEach(nodeId => {
+                  const node = data.nodes.find(n => n.id === nodeId)
+                  if (!node || !node.fx) return
+                  
+                  data.links.forEach(link => {
+                    const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+                    const targetId = typeof link.target === 'string' ? link.target : link.target.id
+                    
+                    if (sourceId === nodeId || targetId === nodeId) {
+                      const otherNodeId = sourceId === nodeId ? targetId : sourceId
+                      const otherNode = data.nodes.find(n => n.id === otherNodeId)
+                      
+                      if (otherNode && otherNode.fx) {
+                        const horizontalDistance = Math.abs(otherNode.fx - node.fx)
+                        totalDistance += horizontalDistance
+                        // Edge distance calculated
+                      }
+                    }
+                  })
+                })
+                return totalDistance
+              }
+              
+              const currentDistance = calculateHorizontalDistance(nodesInLevel)
+              
+              // Try swapping adjacent pairs only (preserves spacing constraints)
+              for (let i = 0; i < nodesInLevel.length - 1; i++) {
+                // Create new ordering with adjacent swap
+                const newOrder = [...nodesInLevel]
+                const temp = newOrder[i]
+                newOrder[i] = newOrder[i + 1]
+                newOrder[i + 1] = temp
+                
+                // Temporarily update positions with proper spacing
+                const tempPositions: { nodeId: string, oldX: number }[] = []
+                const currentLevelSpacing = Math.max(150, compWidth / (newOrder.length + 1))
+                
+                newOrder.forEach((nodeId, index) => {
+                  const node = data.nodes.find(n => n.id === nodeId)
+                  if (node && node.fx) {
+                    tempPositions.push({ nodeId, oldX: node.fx })
+                    node.fx = compStartX + currentLevelSpacing * (index + 1)
+                  }
+                })
+                
+                // Check for intersections with new positions
+                const hasCollisions = hasIntersections(newOrder)
+                const newDistance = calculateHorizontalDistance(newOrder)
+                
+                if (!hasCollisions && newDistance < currentDistance) {
+                  // Keep the new ordering - it reduced horizontal distance without collisions
+                  improved = true
+                  nodesByLevel[level] = newOrder
+                  break // Move to next level after one improvement
+                } else {
+                  // Revert positions (either has collisions or no improvement)
+                  tempPositions.forEach(({ nodeId, oldX }) => {
+                    const node = data.nodes.find(n => n.id === nodeId)
+                    if (node) node.fx = oldX
+                  })
+                }
+              }
+            })
+            
+            // If no improvement was made in this iteration, stop early
+            if (!improved) break
+          }
+        }
+        
+        optimizeWithConstraints(componentNodes, componentStartX, componentWidth)
+        
+        return { levels, maxLevel }
+      }
+      
+      // 4. Layout all components
+      const components = findConnectedComponents()
+      let globalLevels: Record<string, number> = {}
+      let globalMaxLevel = 0
+      
+      components.forEach((component, index) => {
+        const { levels, maxLevel } = positionComponent(component, index, components.length)
+        globalLevels = { ...globalLevels, ...levels }
+        globalMaxLevel = Math.max(globalMaxLevel, maxLevel)
       })
       
-      // 3. Calculate cluster centers based on topic types
-      const maxLevel = Math.max(...Object.values(nodeLevels))
-      const centerX = width / 2
-      const centerY = height / 2
-      
-      // Create three main cluster areas (triangular arrangement)
-      const clusterCenters = {
-        THEORY: { x: centerX - 200, y: centerY - 150 },    // Top left
-        PRACTICE: { x: centerX + 200, y: centerY - 150 },  // Top right  
-        PROJECT: { x: centerX, y: centerY + 200 }          // Bottom center
-      }
-      
-      // 4. Position nodes within clusters based on hierarchy
-      data.nodes.forEach(node => {
-        const level = nodeLevels[node.id] || 0
-        const cluster = clusterCenters[node.type]
-        const nodesInType = typeGroups[node.type]
-        const nodeIndex = nodesInType.indexOf(node)
-        
-        // Create concentric circles within each cluster based on level
-        const levelRadius = 80 + (level * 60)
-        const nodesInLevel = nodesInType.filter(n => (nodeLevels[n.id] || 0) === level)
-        const angleStep = (2 * Math.PI) / Math.max(nodesInLevel.length, 1)
-        const nodeAngle = angleStep * nodesInLevel.indexOf(node)
-        
-        // Add some randomness to avoid perfect circles (looks more organic)
-        const radiusVariation = (Math.random() - 0.5) * 30
-        const angleVariation = (Math.random() - 0.5) * 0.3
-        
-        // Calculate position in cluster
-        const radius = levelRadius + radiusVariation
-        const angle = nodeAngle + angleVariation
-        
-        node.fx = cluster.x + Math.cos(angle) * radius
-        node.fy = cluster.y + Math.sin(angle) * radius
-        
-        // Ensure nodes stay within bounds
-        node.fx = Math.max(50, Math.min(width - 50, node.fx))
-        node.fy = Math.max(50, Math.min(height - 50, node.fy))
-      })
-      
-      return { nodeLevels, maxLevel }
+      return { nodeLevels: globalLevels, maxLevel: globalMaxLevel, componentCount: components.length }
     }
     
-    const { nodeLevels, maxLevel } = improvedGraphLayout()
+    const { nodeLevels, maxLevel, componentCount } = mathematicalGraphLayout()
     
     // Create enhanced force simulation with clustering
     const forceSimulation = d3.forceSimulation<GraphNode>(data.nodes)
@@ -178,26 +506,7 @@ export default function KnowledgeGraph({
         .strength(0.3))
       .force('collision', d3.forceCollide().radius(70))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      // Add clustering forces to keep same types together
-      .force('cluster', () => {
-        const alpha = forceSimulation.alpha()
-        data.nodes.forEach(node => {
-          const clusterCenter = {
-            THEORY: { x: width / 2 - 200, y: height / 2 - 150 },
-            PRACTICE: { x: width / 2 + 200, y: height / 2 - 150 },
-            PROJECT: { x: width / 2, y: height / 2 + 200 }
-          }[node.type]
-          
-          if (!clusterCenter || !node.x || !node.y) return
-          
-          const dx = clusterCenter.x - node.x
-          const dy = clusterCenter.y - node.y
-          const strength = alpha * 0.1 // Gentle clustering force
-          
-          node.vx = (node.vx || 0) + dx * strength
-          node.vy = (node.vy || 0) + dy * strength
-        })
-      })
+      // No clustering forces - nodes have fixed positions
       .alpha(0.3)
       .alphaDecay(0.02) // Slower cooling for better organization
 
@@ -234,36 +543,10 @@ export default function KnowledgeGraph({
       return statusBorderColors[learningStatus as keyof typeof statusBorderColors] || statusBorderColors.NOT_LEARNED
     }
 
-    // Enhanced edge bundling for better visualization
-    const createBundledPath = (sourceNode: GraphNode, targetNode: GraphNode) => {
+    // Simple straight line paths
+    const createStraightPath = (sourceNode: GraphNode, targetNode: GraphNode) => {
       if (!sourceNode.x || !sourceNode.y || !targetNode.x || !targetNode.y) return ''
-      
-      const dx = targetNode.x - sourceNode.x
-      const dy = targetNode.y - sourceNode.y
-      const distance = Math.sqrt(dx * dx + dy * dy)
-      
-      // Different curve styles based on relationship type
-      const sameType = sourceNode.type === targetNode.type
-      const isLongDistance = distance > 200
-      
-      if (sameType && !isLongDistance) {
-        // Simple straight line for close same-type connections
-        return `M ${sourceNode.x},${sourceNode.y} L ${targetNode.x},${targetNode.y}`
-      } else {
-        // Curved paths for cross-type or long-distance connections
-        const midX = (sourceNode.x + targetNode.x) / 2
-        const midY = (sourceNode.y + targetNode.y) / 2
-        
-        // Calculate control point for curve
-        const curvature = sameType ? 0.3 : 0.5
-        const perpX = -dy * curvature
-        const perpY = dx * curvature
-        
-        const controlX = midX + perpX
-        const controlY = midY + perpY
-        
-        return `M ${sourceNode.x},${sourceNode.y} Q ${controlX},${controlY} ${targetNode.x},${targetNode.y}`
-      }
+      return `M ${sourceNode.x},${sourceNode.y} L ${targetNode.x},${targetNode.y}`
     }
 
     // Create enhanced links with bundling
@@ -273,38 +556,10 @@ export default function KnowledgeGraph({
       .data(data.links)
       .enter().append('path')
       .attr('class', 'link')
-      .style('stroke', linkData => {
-        // Color code links by type relationship
-        const sourceNode = typeof linkData.source === 'object' ? linkData.source : data.nodes.find(n => n.id === linkData.source)
-        const targetNode = typeof linkData.target === 'object' ? linkData.target : data.nodes.find(n => n.id === linkData.target)
-        
-        if (!sourceNode || !targetNode) return '#94A3B8'
-        
-        const sameType = sourceNode.type === targetNode.type
-        return sameType ? '#64748B' : '#A855F7' // Gray for same type, purple for cross-type
-      })
-      .style('stroke-opacity', 0.7)
-      .style('stroke-width', linkData => {
-        // Thicker lines for cross-type connections
-        const sourceNode = typeof linkData.source === 'object' ? linkData.source : data.nodes.find(n => n.id === linkData.source)
-        const targetNode = typeof linkData.target === 'object' ? linkData.target : data.nodes.find(n => n.id === linkData.target)
-        
-        if (!sourceNode || !targetNode) return 2
-        
-        const sameType = sourceNode.type === targetNode.type
-        return sameType ? 2 : 3
-      })
+      .style('stroke', '#94A3B8')
+      .style('stroke-opacity', 0.6)
+      .style('stroke-width', 2)
       .style('fill', 'none')
-      .style('stroke-dasharray', linkData => {
-        // Dashed lines for cross-type connections
-        const sourceNode = typeof linkData.source === 'object' ? linkData.source : data.nodes.find(n => n.id === linkData.source)
-        const targetNode = typeof linkData.target === 'object' ? linkData.target : data.nodes.find(n => n.id === linkData.target)
-        
-        if (!sourceNode || !targetNode) return 'none'
-        
-        const sameType = sourceNode.type === targetNode.type
-        return sameType ? 'none' : '5,5'
-      })
 
     // Create arrowheads for directed links
     svgElement.append('defs').selectAll('marker')
@@ -328,7 +583,7 @@ export default function KnowledgeGraph({
         
         if (!sourceNode || !targetNode) return ''
         
-        return createBundledPath(sourceNode, targetNode)
+        return createStraightPath(sourceNode, targetNode)
       })
 
     // Create node groups
@@ -408,39 +663,7 @@ export default function KnowledgeGraph({
     })
 
       
-    // Add cluster labels for better organization
-    const clusterLabels = graphContainer.append('g')
-      .attr('class', 'cluster-labels')
-      .style('pointer-events', 'none')
-    
-    const clusters = [
-      { type: 'THEORY', x: width / 2 - 200, y: height / 2 - 200, label: '📚 Theory Concepts', color: '#3B82F6' },
-      { type: 'PRACTICE', x: width / 2 + 200, y: height / 2 - 200, label: '⚙️ Practical Skills', color: '#10B981' },
-      { type: 'PROJECT', x: width / 2, y: height / 2 + 280, label: '🚀 Project Work', color: '#8B5CF6' }
-    ]
-    
-    clusters.forEach(cluster => {
-      const labelGroup = clusterLabels.append('g')
-        .attr('transform', `translate(${cluster.x}, ${cluster.y})`)
-      
-      // Background circle
-      labelGroup.append('circle')
-        .attr('r', 60)
-        .style('fill', cluster.color)
-        .style('fill-opacity', 0.1)
-        .style('stroke', cluster.color)
-        .style('stroke-width', 2)
-        .style('stroke-dasharray', '5,5')
-      
-      // Label text
-      labelGroup.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('dy', '0.35em')
-        .style('font-size', '14px')
-        .style('font-weight', 'bold')
-        .style('fill', cluster.color)
-        .text(cluster.label)
-    })
+    // No cluster labels - clean mathematical layout
 
     // Add validation badge for LEARNED_AND_VALIDATED status
     const validationBadges = nodeGroups.filter(nodeData => nodeData.status === 'LEARNED_AND_VALIDATED')
@@ -497,7 +720,7 @@ export default function KnowledgeGraph({
         
         if (!sourceNode || !targetNode) return ''
         
-        return createBundledPath(sourceNode, targetNode)
+        return createStraightPath(sourceNode, targetNode)
       })
 
       nodeGroups.attr('transform', nodeData => `translate(${nodeData.x || 0}, ${nodeData.y || 0})`)
