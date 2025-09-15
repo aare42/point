@@ -4,21 +4,17 @@ const { execSync } = require('child_process');
 
 console.log('🚀 Starting Point Educational Platform...');
 
-// Run database migrations
+// Set up database schema
 try {
-  console.log('📦 Running database migrations...');
+  console.log('📦 Setting up database schema...');
   console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Missing');
-  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-  console.log('✅ Database migrations completed');
+  
+  // Use db push instead of migrate for clean PostgreSQL setup
+  execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+  console.log('✅ Database schema created successfully');
 } catch (error) {
-  console.error('❌ Migration failed:', error.message);
-  console.log('🔄 Trying alternative migration...');
-  try {
-    execSync('npx prisma db push', { stdio: 'inherit' });
-    console.log('✅ Database schema pushed successfully');
-  } catch (pushError) {
-    console.error('❌ Schema push also failed:', pushError.message);
-  }
+  console.error('❌ Database setup failed:', error.message);
+  process.exit(1); // Exit if database setup fails
 }
 
 // Seed database if empty
