@@ -1,0 +1,162 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+
+const CreateGoalSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  description: z.string().optional(),
+  motto: z.string().optional(),
+  deadline: z.string().optional(), // ISO date string
+  goalTemplateId: z.string().optional(), // If creating from template
+  topicIds: z.array(z.string()).optional().default([])
+})
+
+const UpdateGoalSchema = CreateGoalSchema.partial()
+
+// GET /api/goals - List user's goals (authentication required)
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Return user's goals with detailed info including template reference
+    const goals = await prisma.goal.findMany({
+      where: { userId: session.user.id },
+      include: {
+        goalTemplate: {
+          select: {
+            id: true,
+            name: true,
+            author: {
+              select: { name: true }
+            }
+          }
+        },
+        topics: {
+          include: {
+            topic: {
+              include: {
+                studentTopics: {
+                  where: { userId: session.user.id },
+                  select: { status: true }
+                }
+              }
+            }
+          }
+        },
+        _count: {
+          select: { topics: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return NextResponse.json(goals)
+  } catch (error) {
+    console.error('Error fetching goals:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// POST /api/goals - Create new goal (optionally from template)
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const validatedData = CreateGoalSchema.parse(body)
+
+    let finalTopicIds = validatedData.topicIds
+    let templateData = null
+
+    // If creating from template, get template data
+    if (validatedData.goalTemplateId) {
+      const template = await prisma.goalTemplate.findUnique({
+        where: { id: validatedData.goalTemplateId },
+        include: {
+          topics: {
+            select: { topicId: true }
+          }
+        }
+      })
+
+      if (!template) {
+        return NextResponse.json({ error: 'Goal template not found' }, { status: 404 })
+      }
+
+      templateData = template
+      // Use template topics if no topics specified
+      if (finalTopicIds.length === 0) {
+        finalTopicIds = template.topics.map(t => t.topicId)
+      }
+    }
+
+    // Verify all topic IDs exist
+    if (finalTopicIds.length > 0) {
+      const existingTopics = await prisma.topic.findMany({
+        where: { id: { in: finalTopicIds } },
+        select: { id: true }
+      })
+
+      if (existingTopics.length !== finalTopicIds.length) {
+        return NextResponse.json({ error: 'Some topics do not exist' }, { status: 400 })
+      }
+    }
+
+    const goal = await prisma.goal.create({
+      data: {
+        name: validatedData.name,
+        description: validatedData.description,
+        motto: validatedData.motto,
+        deadline: validatedData.deadline ? new Date(validatedData.deadline) : null,
+        goalTemplateId: validatedData.goalTemplateId,
+        userId: session.user.id,
+        topics: {
+          create: finalTopicIds.map(topicId => ({
+            topicId
+          }))
+        }
+      },
+      include: {
+        goalTemplate: {
+          select: {
+            id: true,
+            name: true,
+            author: {
+              select: { name: true }
+            }
+          }
+        },
+        topics: {
+          include: {
+            topic: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                type: true,
+                description: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(goal, { status: 201 })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 })
+    }
+    console.error('Error creating goal:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

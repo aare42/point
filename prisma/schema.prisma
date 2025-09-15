@@ -1,0 +1,258 @@
+// Simple, clean schema for educational platform
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Main User model - simplified
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth relations
+  accounts      Account[]
+  sessions      Session[]
+  
+  // Platform relations - simplified
+  authoredTopics Topic[]
+  studentTopics  StudentTopic[]
+  validatedTopics StudentTopic[] @relation("ValidatedTopics")
+  goals          Goal[]
+  goalTemplates  GoalTemplate[]
+  educatedCourses Course[] @relation("EducatedCourses")
+  enrollments     CourseEnrollment[] @relation("StudentEnrollments")
+  authoredVacancies Vacancy[] @relation("AuthoredVacancies")
+}
+
+// Core educational entities
+model Topic {
+  id           String      @id @default(cuid())
+  name         String
+  slug         String      @unique
+  type         TopicType
+  keypoints    String      // JSON string of key learning points
+  description  String?
+  authorId     String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  author            User                  @relation(fields: [authorId], references: [id])
+  prerequisites     TopicPrerequisite[]   @relation("TopicPrerequisites")
+  dependents        TopicPrerequisite[]   @relation("PrerequisiteOf")
+  studentTopics     StudentTopic[]
+  goalTopics        GoalTopic[]
+  goalTemplateTopics GoalTemplateTopic[]
+  courseTopics      CourseTopic[]
+  vacancyTopics     VacancyTopic[]
+}
+
+model TopicPrerequisite {
+  id             String @id @default(cuid())
+  topicId        String
+  prerequisiteId String
+
+  topic        Topic @relation("TopicPrerequisites", fields: [topicId], references: [id], onDelete: Cascade)
+  prerequisite Topic @relation("PrerequisiteOf", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, prerequisiteId])
+}
+
+// Student progress tracking - simplified
+model StudentTopic {
+  id          String            @id @default(cuid())
+  userId      String
+  topicId     String
+  status      StudentTopicStatus @default(NOT_LEARNED)
+  validatedBy String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic       Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  validator   User? @relation("ValidatedTopics", fields: [validatedBy], references: [id])
+
+  @@unique([userId, topicId])
+}
+
+// Goal Templates - premade by platform team/educators
+model GoalTemplate {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  motto       String?    // Motivational reminder
+  authorId    String     // Admin or educator who created this template
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  author      User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  topics      GoalTemplateTopic[]
+  goals       Goal[]            // Goals created from this template
+}
+
+model GoalTemplateTopic {
+  id             String @id @default(cuid())
+  goalTemplateId String
+  topicId        String
+
+  goalTemplate GoalTemplate @relation(fields: [goalTemplateId], references: [id], onDelete: Cascade)
+  topic        Topic        @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([goalTemplateId, topicId])
+}
+
+// Goals - student learning objectives (always private)
+model Goal {
+  id             String     @id @default(cuid())
+  name           String
+  description    String?
+  motto          String?    // Motivational reminder
+  deadline       DateTime?
+  userId         String
+  goalTemplateId String?    // Optional: if created from template
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalTemplate GoalTemplate? @relation(fields: [goalTemplateId], references: [id], onDelete: SetNull)
+  topics       GoalTopic[]
+}
+
+model GoalTopic {
+  id      String @id @default(cuid())
+  goalId  String
+  topicId String
+
+  goal  Goal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, topicId])
+}
+
+// Courses - educator content delivery
+model Course {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean    @default(true)
+  educatorId  String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  educator    User       @relation("EducatedCourses", fields: [educatorId], references: [id], onDelete: Cascade)
+  topics      CourseTopic[]
+  enrollments CourseEnrollment[]
+}
+
+model CourseTopic {
+  id       String @id @default(cuid())
+  courseId String
+  topicId  String
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  topic  Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, topicId])
+}
+
+// Course enrollments - students attending courses
+model CourseEnrollment {
+  id       String @id @default(cuid())
+  courseId String
+  studentId String
+  enrolledAt DateTime @default(now())
+
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student User   @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+}
+
+// Vacancies - simple set of topics with name (employer role of user)
+model Vacancy {
+  id          String     @id @default(cuid())
+  name        String     // Simple name like Goal and Course
+  authorId    String     // User in employer role
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  author      User       @relation("AuthoredVacancies", fields: [authorId], references: [id])
+  topics      VacancyTopic[]
+}
+
+model VacancyTopic {
+  id        String   @id @default(cuid())
+  vacancyId String
+  topicId   String
+
+  vacancy   Vacancy  @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([vacancyId, topicId])
+}
+
+// Enums
+enum UserRole {
+  USER
+  EDITOR
+  ADMIN
+}
+
+enum TopicType {
+  THEORY
+  PRACTICE
+  PROJECT
+}
+
+enum StudentTopicStatus {
+  NOT_LEARNED
+  WANT_TO_LEARN
+  LEARNING
+  LEARNED
+  LEARNED_AND_VALIDATED
+}

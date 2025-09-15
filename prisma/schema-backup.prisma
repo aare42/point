@@ -1,0 +1,216 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  topics        Topic[]
+  goals         Goal[]
+  courses       Course[]
+  vacancies     Vacancy[]
+  studentTopics StudentTopic[]
+  courseStudents CourseStudent[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Topic {
+  id           String      @id @default(cuid())
+  name         String
+  slug         String      @unique
+  type         TopicType
+  keypoints    String
+  description  String?
+  authorId     String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  author       User        @relation(fields: [authorId], references: [id])
+  prerequisites TopicPrerequisite[] @relation("TopicPrerequisites")
+  dependents   TopicPrerequisite[] @relation("PrerequisiteOf")
+  studentTopics StudentTopic[]
+  goalTopics   GoalTopic[]
+  courseTopics CourseTopic[]
+  vacancyTopics VacancyTopic[]
+}
+
+model TopicPrerequisite {
+  id             String @id @default(cuid())
+  topicId        String
+  prerequisiteId String
+
+  topic        Topic @relation("TopicPrerequisites", fields: [topicId], references: [id], onDelete: Cascade)
+  prerequisite Topic @relation("PrerequisiteOf", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, prerequisiteId])
+}
+
+model StudentTopic {
+  id       String            @id @default(cuid())
+  userId   String
+  topicId  String
+  status   StudentTopicStatus @default(NOT_LEARNED)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic    Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
+}
+
+model Goal {
+  id        String    @id @default(cuid())
+  name      String
+  motto     String?
+  deadline  DateTime?
+  authorId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  author    User       @relation(fields: [authorId], references: [id])
+  topics    GoalTopic[]
+}
+
+model GoalTopic {
+  id      String @id @default(cuid())
+  goalId  String
+  topicId String
+
+  goal    Goal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  topic   Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, topicId])
+}
+
+model Course {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author      User           @relation(fields: [authorId], references: [id])
+  topics      CourseTopic[]
+  students    CourseStudent[]
+}
+
+model CourseTopic {
+  id       String @id @default(cuid())
+  courseId String
+  topicId  String
+
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  topic    Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, topicId])
+}
+
+model CourseStudent {
+  id       String   @id @default(cuid())
+  courseId String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+}
+
+model Vacancy {
+  id        String    @id @default(cuid())
+  name      String
+  authorId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  author    User          @relation(fields: [authorId], references: [id])
+  topics    VacancyTopic[]
+}
+
+model VacancyTopic {
+  id        String @id @default(cuid())
+  vacancyId String
+  topicId   String
+
+  vacancy   Vacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  topic     Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([vacancyId, topicId])
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  USER
+}
+
+enum TopicType {
+  THEORY
+  PRACTICE
+  PROJECT
+}
+
+enum StudentTopicStatus {
+  NOT_LEARNED
+  WANT_TO_LEARN
+  LEARNING
+  LEARNED
+  LEARNED_AND_VALIDATED
+}
