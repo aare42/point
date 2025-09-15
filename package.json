@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "build:railway": "prisma generate && prisma migrate deploy && next build",
-    "start": "next start",
+    "build:railway": "prisma generate && next build",
+    "start": "node start.js",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "node create-mock-data.js"
+    "db:seed": "node create-mock-data.js",
+    "db:seed:safe": "node -e \"console.log('Seeding if needed...'); try { require('./create-mock-data.js') } catch(e) { console.log('Seed skipped:', e.message) }\""
   },
   "keywords": [],
   "author": "",
