@@ -519,7 +519,7 @@ export default function KnowledgeGraph({
       
       // Find and log all missing node IDs
       const allNodeIds = new Set(data.nodes.map(n => n.id))
-      const referencedNodeIds = new Set()
+      const referencedNodeIds = new Set<string>()
       data.links.forEach(link => {
         const sourceId = typeof link.source === 'string' ? link.source : link.source.id
         const targetId = typeof link.target === 'string' ? link.target : link.target.id
