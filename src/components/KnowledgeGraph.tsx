@@ -578,6 +578,29 @@ export default function KnowledgeGraph({
     console.log('🚀 About to render links:', data.links.length, 'links')
     console.log('🚀 Sample links:', data.links.slice(0, 3))
     
+    // Debug: Check for the specific problematic link
+    const problematicLink = data.links.find(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id
+      const sourceNode = data.nodes.find(n => n.id === sourceId)
+      const targetNode = data.nodes.find(n => n.id === targetId)
+      
+      return (sourceNode?.name?.includes('Множення та ділення') && targetNode?.name?.includes('Степінь з натуральним')) ||
+             (targetNode?.name?.includes('Множення та ділення') && sourceNode?.name?.includes('Степінь з натуральним'))
+    })
+    
+    if (problematicLink) {
+      console.log('🎯 Found problematic link:', problematicLink)
+      const sourceId = typeof problematicLink.source === 'string' ? problematicLink.source : problematicLink.source.id
+      const targetId = typeof problematicLink.target === 'string' ? problematicLink.target : problematicLink.target.id
+      const sourceNode = data.nodes.find(n => n.id === sourceId)
+      const targetNode = data.nodes.find(n => n.id === targetId)
+      console.log('🎯 Source node:', sourceNode?.name, sourceNode?.x, sourceNode?.y)
+      console.log('🎯 Target node:', targetNode?.name, targetNode?.x, targetNode?.y)
+    } else {
+      console.log('🚨 Problematic link not found in data!')
+    }
+    
     // Create enhanced links with bundling
     const linkElements = graphContainer.append('g')
       .attr('class', 'links')
@@ -765,9 +788,20 @@ export default function KnowledgeGraph({
         const sourceNode = typeof linkData.source === 'object' ? linkData.source : data.nodes.find(node => node.id === linkData.source)
         const targetNode = typeof linkData.target === 'object' ? linkData.target : data.nodes.find(node => node.id === linkData.target)
         
-        if (!sourceNode || !targetNode) return ''
+        if (!sourceNode || !targetNode) {
+          console.warn('🚨 Missing node during tick:', { sourceNode: !!sourceNode, targetNode: !!targetNode })
+          return ''
+        }
         
-        return createStraightPath(sourceNode, targetNode)
+        const path = createStraightPath(sourceNode, targetNode)
+        
+        // Debug: Check if our problematic link is getting a valid path during animation
+        if (sourceNode?.name?.includes('Множення та ділення') || targetNode?.name?.includes('Множення та ділення') ||
+            sourceNode?.name?.includes('Степінь з натуральним') || targetNode?.name?.includes('Степінь з натуральним')) {
+          console.log('🎯 Tick - generating path for:', sourceNode.name, '→', targetNode.name, 'path:', path.substring(0, 50) + '...')
+        }
+        
+        return path
       })
 
       nodeGroups.attr('transform', nodeData => `translate(${nodeData.x || 0}, ${nodeData.y || 0})`)
