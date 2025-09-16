@@ -500,7 +500,14 @@ export default function KnowledgeGraph({
       const targetNode = data.nodes.find(n => n.id === targetId)
       
       if (!sourceNode || !targetNode) {
-        console.warn('🚨 Invalid link found:', { sourceId, targetId, hasSource: !!sourceNode, hasTarget: !!targetNode })
+        console.warn('🚨 Invalid link found:', { 
+          sourceId, 
+          targetId, 
+          hasSource: !!sourceNode, 
+          hasTarget: !!targetNode,
+          missingSourceId: !sourceNode ? sourceId : null,
+          missingTargetId: !targetNode ? targetId : null
+        })
         return false
       }
       return true
@@ -508,12 +515,29 @@ export default function KnowledgeGraph({
     
     console.log('🔧 Valid links for D3:', validLinks.length, 'out of', data.links.length)
     if (validLinks.length !== data.links.length) {
-      console.warn('🚨 Some links have invalid source/target nodes!')
+      console.warn('🚨 Some links have invalid source/target nodes! Missing nodes cause invisible arrows.')
+      
+      // Find and log all missing node IDs
+      const allNodeIds = new Set(data.nodes.map(n => n.id))
+      const referencedNodeIds = new Set()
+      data.links.forEach(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id
+        referencedNodeIds.add(sourceId)
+        referencedNodeIds.add(targetId)
+      })
+      
+      const missingNodeIds = Array.from(referencedNodeIds).filter(id => !allNodeIds.has(id))
+      console.warn('🚨 Missing node IDs:', missingNodeIds)
     }
+    
+    // Filter out invalid links to prevent invisible arrows
+    const filteredLinks = validLinks.length !== data.links.length ? validLinks : data.links
+    console.log('🔧 Using', filteredLinks.length, 'filtered links for D3 simulation')
     
     // Create enhanced force simulation with clustering
     const forceSimulation = d3.forceSimulation<GraphNode>(data.nodes)
-      .force('link', d3.forceLink<GraphNode, GraphLink>(data.links)
+      .force('link', d3.forceLink<GraphNode, GraphLink>(filteredLinks)
         .id(nodeData => nodeData.id)
         .distance(linkData => {
           // Variable distance based on node types and levels
@@ -605,7 +629,7 @@ export default function KnowledgeGraph({
     const linkElements = graphContainer.append('g')
       .attr('class', 'links')
       .selectAll('path')
-      .data(data.links)
+      .data(filteredLinks)
       .enter().append('path')
       .attr('class', 'link')
       .style('stroke', '#94A3B8')
