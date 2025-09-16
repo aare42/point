@@ -487,10 +487,29 @@ export default function KnowledgeGraph({
     const { nodeLevels, maxLevel, componentCount } = mathematicalGraphLayout()
     
     // Debug: Check if links survived the layout algorithm
-    console.log('After mathematical layout:', {
+    console.log('🔧 After mathematical layout:', {
       linksRemaining: data.links.length,
       sampleLinksAfterLayout: data.links.slice(0, 3)
     })
+    
+    // Debug: Check which links might be getting filtered by D3
+    const validLinks = data.links.filter(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id
+      const sourceNode = data.nodes.find(n => n.id === sourceId)
+      const targetNode = data.nodes.find(n => n.id === targetId)
+      
+      if (!sourceNode || !targetNode) {
+        console.warn('🚨 Invalid link found:', { sourceId, targetId, hasSource: !!sourceNode, hasTarget: !!targetNode })
+        return false
+      }
+      return true
+    })
+    
+    console.log('🔧 Valid links for D3:', validLinks.length, 'out of', data.links.length)
+    if (validLinks.length !== data.links.length) {
+      console.warn('🚨 Some links have invalid source/target nodes!')
+    }
     
     // Create enhanced force simulation with clustering
     const forceSimulation = d3.forceSimulation<GraphNode>(data.nodes)
