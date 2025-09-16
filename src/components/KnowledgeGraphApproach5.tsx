@@ -131,10 +131,90 @@ export default function KnowledgeGraphApproach5({ data, width, height, onNodeCli
       }
     }
 
-    console.log('📊 Dagre layers:', layers.map((layer, i) => `Layer ${i}: ${layer.length} nodes`).join(', '))
+    console.log('📊 Initial layers:', layers.map((layer, i) => `Layer ${i}: ${layer.length} nodes`).join(', '))
+    
+    // Optimize layer positions to minimize arrow distances
+    // Move topics closer to their dependents when possible
+    const optimizeLayers = () => {
+      let improved = true
+      let iterations = 0
+      const maxIterations = 10
+      
+      while (improved && iterations < maxIterations) {
+        improved = false
+        iterations++
+        
+        // For each node, try to move it closer to its dependents
+        for (let layerIndex = 0; layerIndex < layers.length - 1; layerIndex++) {
+          const currentLayer = layers[layerIndex]
+          
+          // Check each node in current layer
+          for (const nodeId of [...currentLayer]) {
+            // Find all dependents of this node
+            const dependents = data.links
+              .filter(link => {
+                const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+                return sourceId === nodeId
+              })
+              .map(link => typeof link.target === 'string' ? link.target : link.target.id)
+            
+            // Check if we can move this node up one layer
+            if (dependents.length > 0) {
+              // Find what layer the dependents are in
+              const dependentLayers = dependents.map(depId => {
+                for (let i = 0; i < layers.length; i++) {
+                  if (layers[i].includes(depId)) return i
+                }
+                return -1
+              }).filter(l => l !== -1)
+              
+              if (dependentLayers.length > 0) {
+                const minDependentLayer = Math.min(...dependentLayers)
+                
+                // If dependents are in next layer or further, try moving up
+                if (minDependentLayer > layerIndex + 1) {
+                  // Check if all prerequisites of this node are still satisfied
+                  const prerequisites = data.links
+                    .filter(link => {
+                      const targetId = typeof link.target === 'string' ? link.target : link.target.id
+                      return targetId === nodeId
+                    })
+                    .map(link => typeof link.source === 'string' ? link.source : link.source.id)
+                  
+                  // Find the maximum layer of prerequisites
+                  const prereqLayers = prerequisites.map(prereqId => {
+                    for (let i = 0; i < layers.length; i++) {
+                      if (layers[i].includes(prereqId)) return i
+                    }
+                    return -1
+                  }).filter(l => l !== -1)
+                  
+                  const maxPrereqLayer = prereqLayers.length > 0 ? Math.max(...prereqLayers) : -1
+                  
+                  // Can move up if we stay above all prerequisites
+                  const targetLayer = Math.min(minDependentLayer - 1, layerIndex + 1)
+                  if (targetLayer > maxPrereqLayer) {
+                    // Move the node up
+                    currentLayer.splice(currentLayer.indexOf(nodeId), 1)
+                    layers[targetLayer].push(nodeId)
+                    improved = true
+                    console.log(`📈 Moved ${data.nodes.find(n => n.id === nodeId)?.name} from layer ${layerIndex} to ${targetLayer}`)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`📊 Optimization complete after ${iterations} iterations`)
+      console.log('📊 Final layers:', layers.map((layer, i) => `Layer ${i}: ${layer.length} nodes`).join(', '))
+    }
+    
+    optimizeLayers()
 
-    // Position nodes in layers (bottom to top)
-    const layerSpacing = Math.max(80, (height - 100) / Math.max(layers.length - 1, 1))
+    // Position nodes in optimized layers (bottom to top)
+    const layerSpacing = Math.max(120, (height - 100) / Math.max(layers.length - 1, 1))
     const nodeSpacing = 120
     
     // Reverse layers to show bottom-to-top (dependencies at bottom)
@@ -153,6 +233,45 @@ export default function KnowledgeGraphApproach5({ data, width, height, onNodeCli
         }
       })
     })
+    
+    // Calculate and log arrow distance statistics
+    const calculateArrowStats = () => {
+      let totalDistance = 0
+      let maxDistance = 0
+      const distances: number[] = []
+      
+      data.links.forEach(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id
+        
+        let sourceLayer = -1
+        let targetLayer = -1
+        
+        for (let i = 0; i < layers.length; i++) {
+          if (layers[i].includes(sourceId)) sourceLayer = i
+          if (layers[i].includes(targetId)) targetLayer = i
+        }
+        
+        if (sourceLayer !== -1 && targetLayer !== -1) {
+          const distance = Math.abs(targetLayer - sourceLayer)
+          distances.push(distance)
+          totalDistance += distance
+          maxDistance = Math.max(maxDistance, distance)
+        }
+      })
+      
+      console.log('📏 Arrow distance stats:', {
+        total: totalDistance,
+        max: maxDistance,
+        avg: (totalDistance / distances.length).toFixed(2),
+        distribution: distances.reduce((acc, d) => {
+          acc[d] = (acc[d] || 0) + 1
+          return acc
+        }, {} as Record<number, number>)
+      })
+    }
+    
+    calculateArrowStats()
 
     // Create defs for arrow markers
     const defs = svg.append('defs')
@@ -325,7 +444,7 @@ export default function KnowledgeGraphApproach5({ data, width, height, onNodeCli
       </svg>
       
       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-gray-200">
-        <div className="text-sm font-semibold text-gray-700 mb-2">Approach 5: Dagre-style</div>
+        <div className="text-sm font-semibold text-gray-700 mb-2">Approach 5: Distance Optimized</div>
         <div className="space-y-1 text-xs">
           <div className="flex items-center space-x-2">
             <span>📚</span>
