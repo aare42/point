@@ -17,13 +17,17 @@ try {
   process.exit(1); // Exit if database setup fails
 }
 
-// Seed database if empty
-try {
-  console.log('🌱 Seeding database if needed...');
-  execSync('node create-mock-data.js', { stdio: 'inherit' });
-  console.log('✅ Database seeded');
-} catch (error) {
-  console.log('⚠️  Seeding skipped:', error.message);
+// Seed database only in development
+if (process.env.NODE_ENV === 'development' || process.env.ENABLE_SEEDING === 'true') {
+  try {
+    console.log('🌱 Seeding database if needed...');
+    execSync('node create-mock-data.js', { stdio: 'inherit' });
+    console.log('✅ Database seeded');
+  } catch (error) {
+    console.log('⚠️  Seeding skipped:', error.message);
+  }
+} else {
+  console.log('⏭️  Seeding skipped in production');
 }
 
 // Start the application

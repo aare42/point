@@ -4,17 +4,21 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Creating mock data...')
 
-  // Create educator users
-  const educator1 = await prisma.user.create({
-    data: {
+  // Create or find educator users
+  const educator1 = await prisma.user.upsert({
+    where: { email: 'educator1@example.com' },
+    update: {},
+    create: {
       email: 'educator1@example.com',
       name: 'Dr. Sarah Johnson',
       role: 'EDITOR',
     },
   })
 
-  const educator2 = await prisma.user.create({
-    data: {
+  const educator2 = await prisma.user.upsert({
+    where: { email: 'educator2@example.com' },
+    update: {},
+    create: {
       email: 'educator2@example.com',
       name: 'Prof. Michael Chen',
       role: 'EDITOR',
