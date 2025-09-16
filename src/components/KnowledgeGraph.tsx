@@ -146,8 +146,9 @@ export default function KnowledgeGraph({
         
         componentNodes.forEach(nodeId => getLevel(nodeId))
         
-        // FIX: Remove any edges that would create horizontal connections
-        const validLinks = data.links.filter(link => {
+        // DON'T modify the original data.links - this breaks the graph permanently
+        // Instead, just warn about problematic edges but keep them for rendering
+        data.links.forEach(link => {
           const sourceId = typeof link.source === 'string' ? link.source : link.source.id
           const targetId = typeof link.target === 'string' ? link.target : link.target.id
           
@@ -155,20 +156,12 @@ export default function KnowledgeGraph({
             const sourceLevel = levels[sourceId]
             const targetLevel = levels[targetId]
             
-            // Only keep edges where source level < target level (proper DAG)
+            // Only warn about potentially problematic edges, but keep them
             if (sourceLevel >= targetLevel) {
-              console.warn(`Removing invalid edge: ${data.nodes.find(n => n.id === sourceId)?.name} → ${data.nodes.find(n => n.id === targetId)?.name} (levels: ${sourceLevel} → ${targetLevel})`)
-              return false
+              console.warn(`Potential cycle/horizontal edge: ${data.nodes.find(n => n.id === sourceId)?.name} → ${data.nodes.find(n => n.id === targetId)?.name} (levels: ${sourceLevel} → ${targetLevel})`)
             }
           }
-          return true
         })
-        
-        // Update the data.links to only include valid edges
-        if (validLinks.length !== data.links.length) {
-          console.log(`Filtered ${data.links.length - validLinks.length} invalid edges`)
-          data.links = validLinks
-        }
         
         // Debug: Show level distribution
         const levelCounts: Record<number, number> = {}
@@ -562,15 +555,29 @@ export default function KnowledgeGraph({
       .style('fill', 'none')
 
     // Create arrowheads for directed links
-    svgElement.append('defs').selectAll('marker')
-      .data(['arrow'])
-      .enter().append('marker')
+    const defs = svgElement.append('defs')
+    
+    // Regular arrow for normal links
+    defs.append('marker')
       .attr('id', 'arrow')
       .attr('viewBox', '0 -5 10 10')
       .attr('refX', 25)
       .attr('refY', 0)
       .attr('markerWidth', 6)
       .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-5L10,0L0,5')
+      .style('fill', '#94A3B8')
+    
+    // Highlighted arrow for thick links
+    defs.append('marker')
+      .attr('id', 'arrow-highlighted')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 27) // Slightly further back to account for thicker line
+      .attr('refY', 0)
+      .attr('markerWidth', 8)
+      .attr('markerHeight', 8)
       .attr('orient', 'auto')
       .append('path')
       .attr('d', 'M0,-5L10,0L0,5')
@@ -693,6 +700,9 @@ export default function KnowledgeGraph({
         ).style('stroke-width', linkData => 
           (typeof linkData.source === 'object' && linkData.source.id === nodeData.id) ||
           (typeof linkData.target === 'object' && linkData.target.id === nodeData.id) ? 4 : 2
+        ).attr('marker-end', linkData => 
+          (typeof linkData.source === 'object' && linkData.source.id === nodeData.id) ||
+          (typeof linkData.target === 'object' && linkData.target.id === nodeData.id) ? 'url(#arrow-highlighted)' : 'url(#arrow)'
         )
       })
       .on('mouseout', function(event, nodeData) {
@@ -706,6 +716,7 @@ export default function KnowledgeGraph({
         // Reset links
         linkElements.style('stroke-opacity', 0.6)
           .style('stroke-width', 2)
+          .attr('marker-end', 'url(#arrow)')
       })
       .on('click', function(event, nodeData) {
         onNodeClick?.(nodeData)
@@ -797,20 +808,6 @@ export default function KnowledgeGraph({
               </div>
             </div>
 
-            {/* Edge Types */}
-            <div className="mb-4">
-              <h4 className="text-xs font-bold text-gray-700 mb-2">Connection Types</h4>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <div className="w-6 h-0.5 bg-gray-600"></div>
-                  <span className="text-xs text-gray-600">Within cluster</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-6 h-0.5 bg-purple-500" style={{backgroundImage: 'repeating-linear-gradient(90deg, currentColor 0, currentColor 3px, transparent 3px, transparent 6px)'}}></div>
-                  <span className="text-xs text-gray-600">Cross-cluster</span>
-                </div>
-              </div>
-            </div>
             
             {/* Learning Status */}
             <div>
