@@ -58,6 +58,13 @@ export default function KnowledgeGraph({
   useEffect(() => {
     if (!isClientMounted || !svgRef.current || !data.nodes.length) return
 
+    // Debug: Log incoming data
+    console.log('🔧 KnowledgeGraph v2.1 (fixed edges) - received data:', {
+      nodes: data.nodes.length,
+      links: data.links.length,
+      sampleLinks: data.links.slice(0, 3)
+    })
+
     // Clear previous graph
     d3.select(svgRef.current).selectAll('*').remove()
 
@@ -479,6 +486,12 @@ export default function KnowledgeGraph({
     
     const { nodeLevels, maxLevel, componentCount } = mathematicalGraphLayout()
     
+    // Debug: Check if links survived the layout algorithm
+    console.log('After mathematical layout:', {
+      linksRemaining: data.links.length,
+      sampleLinksAfterLayout: data.links.slice(0, 3)
+    })
+    
     // Create enhanced force simulation with clustering
     const forceSimulation = d3.forceSimulation<GraphNode>(data.nodes)
       .force('link', d3.forceLink<GraphNode, GraphLink>(data.links)
@@ -542,6 +555,10 @@ export default function KnowledgeGraph({
       return `M ${sourceNode.x},${sourceNode.y} L ${targetNode.x},${targetNode.y}`
     }
 
+    // Debug: Log links being rendered
+    console.log('🚀 About to render links:', data.links.length, 'links')
+    console.log('🚀 Sample links:', data.links.slice(0, 3))
+    
     // Create enhanced links with bundling
     const linkElements = graphContainer.append('g')
       .attr('class', 'links')
