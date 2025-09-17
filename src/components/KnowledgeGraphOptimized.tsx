@@ -506,7 +506,9 @@ export default function KnowledgeGraphOptimized({
     // Update node colors for selection state
     svgElement.selectAll('.node')
       .style('fill', function() {
-        const nodeData = d3.select(this.parentNode as any).datum() as GraphNode
+        const parentNode = this.parentNode
+        if (!parentNode) return '#F3F4F6' // Default gray if no parent
+        const nodeData = d3.select(parentNode as any).datum() as GraphNode
         return getNodeColor(nodeData, nodeData.id === selectedNodeId, false)
       })
   }, [selectedNodeId, isClientMounted])
