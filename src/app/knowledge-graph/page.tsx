@@ -2,46 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import KnowledgeGraphOptimized from '@/components/KnowledgeGraphOptimized'
+import KnowledgeGraph from '@/components/KnowledgeGraph'
 import { TopicType } from '@prisma/client'
-
-// Collapsible Section Component
-interface CollapsibleSectionProps {
-  title: string
-  count: number
-  children: React.ReactNode
-  defaultOpen?: boolean
-}
-
-function CollapsibleSection({ title, count, children, defaultOpen = false }: CollapsibleSectionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen)
-  
-  return (
-    <div>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors mb-2"
-      >
-        <h5 className="font-semibold text-gray-900">
-          {title} ({count})
-        </h5>
-        <svg
-          className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {isOpen && (
-        <div className="mb-4">
-          {children}
-        </div>
-      )}
-    </div>
-  )
-}
 
 interface Topic {
   id: string
@@ -89,7 +51,6 @@ export default function KnowledgeGraphPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [courses, setCourses] = useState<any[]>([])
   const [loadingCourses, setLoadingCourses] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   const statusLabels = {
     NOT_LEARNED: 'Not Learned',
@@ -116,27 +77,10 @@ export default function KnowledgeGraphPage() {
 
   const fetchTopics = async () => {
     try {
-      console.log('🔧 Loading topics from main database API...')
       const response = await fetch('/api/student/topics')
       if (response.ok) {
         const data = await response.json()
-        console.log('🔧 ✅ Loaded', data.length, 'topics from authenticated API')
         setTopics(data)
-        setIsAuthenticated(true)
-      } else if (response.status === 401) {
-        console.log('🔧 Not authenticated, trying public endpoint...')
-        // Fallback to public endpoint for unauthenticated users
-        const publicResponse = await fetch('/api/topics/public')
-        if (publicResponse.ok) {
-          const publicData = await publicResponse.json()
-          console.log('🔧 ✅ Loaded', publicData.length, 'topics from public API')
-          setTopics(publicData)
-          setIsAuthenticated(false)
-        } else {
-          console.error('Failed to fetch public topics, status:', publicResponse.status)
-        }
-      } else {
-        console.error('Failed to fetch topics, status:', response.status)
       }
     } catch (error) {
       console.error('Failed to fetch topics:', error)
@@ -146,11 +90,6 @@ export default function KnowledgeGraphPage() {
   }
 
   const updateTopicStatus = async (topicId: string, newStatus: string) => {
-    if (!isAuthenticated) {
-      alert('Please sign in to update topic status. You can view all topics but status updates require authentication.')
-      return
-    }
-
     setUpdating(topicId)
     try {
       const response = await fetch('/api/student/topics', {
@@ -170,8 +109,6 @@ export default function KnowledgeGraphPage() {
         if (selectedNode?.id === topicId) {
           setSelectedNode({ ...selectedNode, status: newStatus })
         }
-      } else if (response.status === 401) {
-        alert('Authentication expired. Please refresh the page and sign in again.')
       } else {
         alert('Failed to update topic status')
       }
@@ -212,12 +149,6 @@ export default function KnowledgeGraphPage() {
         })
       })
     })
-
-    // Debug: Log data to console
-    console.log('Topics loaded:', topics.length)
-    console.log('Prerequisites found:', links.length)
-    console.log('Sample topic with prerequisites:', topics.find(t => t.prerequisites.length > 0))
-    console.log('All links:', links)
 
     return { nodes, links, highlightType: filterType }
   }
@@ -405,7 +336,7 @@ export default function KnowledgeGraphPage() {
                 </div>
               </div>
               
-              <KnowledgeGraphOptimized
+              <KnowledgeGraph
                 data={graphData}
                 width={selectedNode ? 800 : 1100}
                 height={700}
@@ -444,9 +375,9 @@ export default function KnowledgeGraphPage() {
                           <select
                             value={selectedNode.status || 'NOT_LEARNED'}
                             onChange={(e) => updateTopicStatus(selectedNode.id, e.target.value)}
-                            disabled={updating === selectedNode.id || !isAuthenticated}
+                            disabled={updating === selectedNode.id}
                             className={`px-3 py-1 border-2 rounded-full text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white ${
-                              updating === selectedNode.id || !isAuthenticated ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                              updating === selectedNode.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                             } ${
                               selectedNode.status === 'NOT_LEARNED' ? 'border-gray-500 text-gray-700' :
                               selectedNode.status === 'WANT_TO_LEARN' ? 'border-blue-500 text-blue-700' :
@@ -465,11 +396,6 @@ export default function KnowledgeGraphPage() {
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border-2 border-purple-500 text-purple-700 bg-purple-50">
                             🎓 {statusLabels[selectedNode.status as keyof typeof statusLabels]}
                           </span>
-                        )}
-                        {!isAuthenticated && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Sign in to update status
-                          </p>
                         )}
                       </div>
                     </div>
@@ -534,11 +460,8 @@ export default function KnowledgeGraphPage() {
                     if (!topicData) return null
                     
                     return (
-                      <CollapsibleSection 
-                        title="Prerequisites" 
-                        count={topicData.prerequisites.length}
-                        defaultOpen={false}
-                      >
+                      <div>
+                        <h5 className="font-semibold text-gray-900 mb-3">Prerequisites ({topicData.prerequisites.length})</h5>
                         {topicData.prerequisites.length > 0 ? (
                           <div className="space-y-2">
                             {topicData.prerequisites.map(prereq => (
@@ -568,7 +491,7 @@ export default function KnowledgeGraphPage() {
                         ) : (
                           <p className="text-sm text-gray-500 italic">No prerequisites required</p>
                         )}
-                      </CollapsibleSection>
+                      </div>
                     )
                   })()}
                   
@@ -579,11 +502,8 @@ export default function KnowledgeGraphPage() {
                     )
                     
                     return (
-                      <CollapsibleSection 
-                        title="Unlocks" 
-                        count={dependents.length}
-                        defaultOpen={false}
-                      >
+                      <div>
+                        <h5 className="font-semibold text-gray-900 mb-3">Unlocks ({dependents.length})</h5>
                         {dependents.length > 0 ? (
                           <div className="space-y-2">
                             {dependents.map(dependent => (
@@ -613,16 +533,13 @@ export default function KnowledgeGraphPage() {
                         ) : (
                           <p className="text-sm text-gray-500 italic">This topic doesn't unlock any others yet</p>
                         )}
-                      </CollapsibleSection>
+                      </div>
                     )
                   })()}
                   
                   {/* Courses */}
-                  <CollapsibleSection 
-                    title="Courses" 
-                    count={courses.length}
-                    defaultOpen={true}
-                  >
+                  <div>
+                    <h5 className="font-semibold text-gray-900 mb-3">Courses ({courses.length})</h5>
                     {loadingCourses ? (
                       <div className="flex items-center justify-center py-4">
                         <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
@@ -670,7 +587,7 @@ export default function KnowledgeGraphPage() {
                         </button>
                       </div>
                     )}
-                  </CollapsibleSection>
+                  </div>
                 </div>
               </div>
             )}
