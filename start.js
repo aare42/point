@@ -4,6 +4,14 @@ const { execSync } = require('child_process');
 
 console.log('🚀 Starting Point Educational Platform...');
 
+// Debug Railway environment
+try {
+  console.log('🔍 Running Railway environment debug...');
+  execSync('node debug-railway-env.js', { stdio: 'inherit' });
+} catch (error) {
+  console.log('⚠️  Debug failed:', error.message);
+}
+
 // Set up database schema
 try {
   console.log('📦 Setting up database schema...');
