@@ -1,11 +1,10 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-Please, feel free to update it as you build a project.
+Please, update it each time you update a project with information you might need.
 
 ##Project description
 
-We need to build project from the scratch. You can choose any technology stack.
 This project is a PoC of educational web-platform I want to create.
 The core idea is to make a system where any person can create own educational trajectory, track progress and make knowledge portfolio.
 It will work around knowledge graph, that will connect topics from different domains by prerequisite-effect connection.
@@ -17,14 +16,6 @@ the right set of skills, seeing all the knowledge picture.
 
 Please, keep it divided into small independent modules.
 Add short description comment to each non-obvious method and to each file.
-
-## Project Structure
-
-We'll need next modules:
-- authorization, user management. Google Oauth2 will do the job on this stage
-- db and handling connection with it
-- admin panel for managing records in db
-- knowledge graph representation
 
 ## Technology Stack & Implementation Status
 
