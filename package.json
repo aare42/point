@@ -13,7 +13,11 @@
     "db:push": "prisma db push",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "node create-mock-data.js",
-    "db:seed:safe": "node -e \"console.log('Seeding if needed...'); try { require('./create-mock-data.js') } catch(e) { console.log('Seed skipped:', e.message) }\""
+    "db:seed:safe": "node -e \"console.log('Seeding if needed...'); try { require('./create-mock-data.js') } catch(e) { console.log('Seed skipped:', e.message) }\"",
+    "db:backup": "node scripts/db-backup.js",
+    "db:backup:prod": "node scripts/db-backup-prod.js",
+    "db:restore": "node scripts/db-restore.js",
+    "db:list": "node scripts/db-list.js"
   },
   "keywords": [],
   "author": "",
