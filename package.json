@@ -7,13 +7,13 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "build:railway": "prisma generate && next build",
-    "start": "node start.js",
+    "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "node create-mock-data.js",
-    "db:seed:safe": "node -e \"console.log('Seeding if needed...'); try { require('./create-mock-data.js') } catch(e) { console.log('Seed skipped:', e.message) }\""
+    "db:seed": "echo 'Seeding disabled'",
+    "db:seed:safe": "echo 'Seeding disabled'"
   },
   "keywords": [],
   "author": "",
