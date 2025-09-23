@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 const CreateCourseSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200, 'Name too long'),
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const educatorId = searchParams.get('educatorId')
+    const language = (searchParams.get('lang') || 'en') as 'en' | 'uk'
 
     const courses = await prisma.course.findMany({
       where: educatorId ? { educatorId } : { isPublic: true },
@@ -42,7 +44,21 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json(courses)
+    // Localize the text fields
+    const localizedCourses = courses.map(course => ({
+      ...course,
+      name: getLocalizedText(course.name as any, language),
+      description: course.description ? getLocalizedText(course.description as any, language) : null,
+      topics: course.topics.map(ct => ({
+        ...ct,
+        topic: {
+          ...ct.topic,
+          name: getLocalizedText(ct.topic.name as any, language)
+        }
+      }))
+    }))
+
+    return NextResponse.json(localizedCourses)
   } catch (error) {
     console.error('Error fetching courses:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

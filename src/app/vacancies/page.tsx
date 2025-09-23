@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Topic {
   id: string
@@ -45,6 +46,7 @@ const statusColors = {
 export default function VacanciesPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -170,7 +172,7 @@ export default function VacanciesPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">Loading vacancies...</p>
+            <p className="text-gray-600 font-medium">{t('vacancies.loading')}</p>
           </div>
         </div>
       </div>
@@ -185,10 +187,10 @@ export default function VacanciesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                💼 Browse Vacancies
+                💼 {t('vacancies.browse_title')}
               </h1>
               <p className="text-gray-600">
-                Discover job opportunities and skill requirements from employers
+                {t('vacancies.discover_jobs')}
               </p>
             </div>
             
@@ -198,13 +200,13 @@ export default function VacanciesPage() {
                 href="/student"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
-                Student Dashboard
+                {t('courses.student_dashboard')}
               </Link>
               <Link
                 href="/knowledge-graph"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
-                Knowledge Graph
+                {t('courses.knowledge_graph')}
               </Link>
             </div>
           </div>
@@ -215,7 +217,7 @@ export default function VacanciesPage() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search vacancies, companies, or requirements..."
+              placeholder={t('vacancies.search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -229,15 +231,18 @@ export default function VacanciesPage() {
         {/* Results Info */}
         <div className="mb-6 flex items-center justify-between">
           <div className="text-gray-600">
-            Found <strong>{filteredVacancies.length}</strong> {filteredVacancies.length !== 1 ? 'vacancies' : 'vacancy'}
-            {searchQuery && ` matching "${searchQuery}"`}
+            {t('vacancies.found_vacancies', { 
+              count: filteredVacancies.length.toString(), 
+              plural: filteredVacancies.length !== 1 ? t('vacancies.vacancies') : t('vacancies.vacancy')
+            })}
+            {searchQuery && ` ${t('courses.matching_search', { query: searchQuery })}`}
           </div>
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
               className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
             >
-              Clear search
+              {t('goals.clear_search')}
             </button>
           )}
         </div>
@@ -267,7 +272,7 @@ export default function VacanciesPage() {
                   {/* Skills Required */}
                   {vacancy.topics.length > 0 && (
                     <div className="mb-4">
-                      <div className="text-sm font-medium text-gray-700 mb-2">Required Skills:</div>
+                      <div className="text-sm font-medium text-gray-700 mb-2">{t('vacancies.required_skills')}</div>
                       <div className="flex flex-wrap gap-1">
                         {vacancy.topics.slice(0, 4).map((vacancyTopic) => {
                           const status = getTopicStatus(vacancyTopic.topic.id)
@@ -289,7 +294,7 @@ export default function VacanciesPage() {
                         })}
                         {vacancy.topics.length > 4 && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            +{vacancy.topics.length - 4} more
+                            {t('courses.more_topics', { count: (vacancy.topics.length - 4).toString() })}
                           </span>
                         )}
                       </div>
@@ -303,7 +308,7 @@ export default function VacanciesPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
-                        <span>{vacancy._count.topics} skills</span>
+                        <span>{t('vacancies.skills_count', { count: vacancy._count.topics.toString() })}</span>
                       </span>
                     </div>
                     <div className="text-xs text-gray-400">
@@ -325,14 +330,14 @@ export default function VacanciesPage() {
                         {creatingGoal === vacancy.id ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>Creating Goal...</span>
+                            <span>{t('vacancies.creating_goal')}</span>
                           </>
                         ) : (
                           <>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span>Create Learning Goal</span>
+                            <span>{t('vacancies.create_learning_goal')}</span>
                           </>
                         )}
                       </button>
@@ -348,7 +353,7 @@ export default function VacanciesPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                         </svg>
-                        <span>Sign In to Create Goal</span>
+                        <span>{t('vacancies.sign_in_to_create')}</span>
                       </Link>
                     </div>
                   )}
@@ -362,19 +367,19 @@ export default function VacanciesPage() {
               {searchQuery ? '🔍' : '💼'}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              {searchQuery ? 'No vacancies found' : 'No vacancies available yet'}
+              {searchQuery ? t('vacancies.no_vacancies_found') : t('vacancies.no_vacancies_available')}
             </h3>
             <p className="text-gray-600 mb-6">
               {searchQuery 
-                ? 'Try adjusting your search to find more job opportunities.'
-                : 'Employers haven\'t posted any vacancies yet. Check back later!'}
+                ? t('vacancies.adjust_search_vacancies')
+                : t('vacancies.employers_no_vacancies')}
             </p>
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                Clear Search
+                {t('goals.clear_search_button')}
               </button>
             )}
           </div>
@@ -384,22 +389,22 @@ export default function VacanciesPage() {
         {vacancies.length > 0 && (
           <div className="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 text-center border border-indigo-100">
             <div className="text-4xl mb-4">🎯</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Ready to Build Your Skills?</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('vacancies.ready_build_skills')}</h3>
             <p className="text-gray-600 mb-6">
-              Explore courses and set learning goals to develop the skills employers are looking for.
+              {t('vacancies.explore_courses_cta')}
             </p>
             <div className="flex items-center justify-center space-x-4">
               <Link
                 href="/courses"
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                Browse Courses
+                {t('vacancies.browse_courses')}
               </Link>
               <Link
                 href="/goals"
                 className="px-6 py-3 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
               >
-                Set Learning Goals
+                {t('vacancies.set_learning_goals')}
               </Link>
             </div>
           </div>

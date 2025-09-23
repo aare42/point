@@ -21,6 +21,9 @@ node_modules
 /prisma/*.db
 /prisma/*.db-journal
 
+# Database backups (optional - remove this line to commit backups)
+/db-backups/
+
 # Generated
 /generated/prisma
 

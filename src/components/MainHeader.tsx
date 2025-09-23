@@ -4,9 +4,12 @@ import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import RoleSwitcher, { UserRole } from './RoleSwitcher'
+import LanguageSwitcher from './LanguageSwitcher'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function MainHeader() {
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [currentRole, setCurrentRole] = useState<UserRole>('STUDENT')
   const [showUserMenu, setShowUserMenu] = useState(false)
 
@@ -25,12 +28,12 @@ export default function MainHeader() {
     localStorage.setItem('selectedRole', newRole)
   }
 
-  // Static navigation links as requested
+  // Navigation links with translations
   const navigationLinks = [
-    { name: 'Knowledge Graph', href: '/knowledge-graph', icon: '🧠' },
-    { name: 'Courses', href: '/courses', icon: '📚' },
-    { name: 'Vacancies', href: '/vacancies', icon: '💼' },
-    { name: 'Goals', href: '/goals', icon: '🎯' }
+    { name: t('nav.knowledge_graph'), href: '/knowledge-graph', icon: '🧠' },
+    { name: t('nav.courses'), href: '/courses', icon: '📚' },
+    { name: t('nav.vacancies'), href: '/vacancies', icon: '💼' },
+    { name: t('nav.goals'), href: '/goals', icon: '🎯' }
   ]
 
   return (
@@ -75,7 +78,7 @@ export default function MainHeader() {
             </button>
           </div>
 
-          {/* User menu and role switcher */}
+          {/* User menu, role switcher, and language switcher */}
           <div className="flex items-center space-x-4">
             {/* Admin panel link */}
             {(session.user?.role === 'ADMIN' || session.user?.role === 'EDITOR') && (
@@ -83,9 +86,12 @@ export default function MainHeader() {
                 href="/admin"
                 className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
               >
-                Admin Panel
+                {t('nav.admin')}
               </Link>
             )}
+
+            {/* Language switcher */}
+            <LanguageSwitcher />
 
             {/* Role switcher */}
             <RoleSwitcher 
@@ -98,7 +104,7 @@ export default function MainHeader() {
               onClick={() => signOut()}
               className="text-sm text-gray-600 hover:text-red-600 transition-colors"
             >
-              Sign out
+              {t('nav.sign_out')}
             </button>
           </div>
         </div>

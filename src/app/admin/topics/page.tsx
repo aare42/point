@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: any // Multilingual
   slug: string
   type: TopicType
-  description?: string
+  description?: any // Multilingual
   createdAt: string
   author: {
     id: string
@@ -19,7 +21,7 @@ interface Topic {
   prerequisites: {
     prerequisite: {
       id: string
-      name: string
+      name: any // Multilingual
       slug: string
     }
   }[]
@@ -31,6 +33,7 @@ interface Topic {
 }
 
 export default function AdminTopicsPage() {
+  const { language } = useLanguage()
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -150,7 +153,7 @@ export default function AdminTopicsPage() {
                 <td className="px-6 py-5">
                   <div>
                     <div className="text-sm font-bold text-gray-900">
-                      {topic.name}
+                      {getLocalizedText(topic.name as any, language)}
                     </div>
                     <div className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-1 rounded-md inline-block mt-1">
                       /{topic.slug}
@@ -171,7 +174,7 @@ export default function AdminTopicsPage() {
                       <div className="space-y-1">
                         {topic.prerequisites.slice(0, 2).map(p => (
                           <div key={p.prerequisite.id} className="text-xs bg-gray-100 px-2 py-1 rounded-md inline-block mr-1">
-                            {p.prerequisite.name}
+                            {getLocalizedText(p.prerequisite.name as any, language)}
                           </div>
                         ))}
                         {topic.prerequisites.length > 2 && (

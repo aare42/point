@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 const CreateGoalSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
@@ -23,6 +24,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { searchParams } = new URL(request.url)
+    const language = (searchParams.get('lang') || 'en') as 'en' | 'uk'
 
     // Return user's goals with detailed info including template reference
     const goals = await prisma.goal.findMany({
@@ -56,7 +60,26 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json(goals)
+    // Localize the text fields
+    const localizedGoals = goals.map(goal => ({
+      ...goal,
+      name: getLocalizedText(goal.name as any, language),
+      description: goal.description ? getLocalizedText(goal.description as any, language) : null,
+      motto: goal.motto ? getLocalizedText(goal.motto as any, language) : null,
+      goalTemplate: goal.goalTemplate ? {
+        ...goal.goalTemplate,
+        name: getLocalizedText(goal.goalTemplate.name as any, language)
+      } : null,
+      topics: goal.topics.map(gt => ({
+        ...gt,
+        topic: {
+          ...gt.topic,
+          name: getLocalizedText(gt.topic.name as any, language)
+        }
+      }))
+    }))
+
+    return NextResponse.json(localizedGoals)
   } catch (error) {
     console.error('Error fetching goals:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

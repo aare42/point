@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Topic {
   id: string
@@ -91,6 +92,7 @@ const statusColors = {
 
 export default function StudentDashboard() {
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [goals, setGoals] = useState<Goal[]>([])
   const [recentTopics, setRecentTopics] = useState<StudentTopic[]>([])
@@ -108,9 +110,9 @@ export default function StudentDashboard() {
   const fetchData = async () => {
     try {
       const [dashboardResponse, goalsResponse, topicsResponse] = await Promise.all([
-        fetch('/api/student/dashboard'),
-        fetch('/api/goals'),
-        fetch('/api/student/topics')
+        fetch(`/api/student/dashboard?lang=${language}`),
+        fetch(`/api/goals?lang=${language}`),
+        fetch(`/api/student/topics?lang=${language}`)
       ])
 
       if (dashboardResponse.ok) {
@@ -206,7 +208,7 @@ export default function StudentDashboard() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+            <p className="text-gray-600 font-medium">{t('student.loading_dashboard')}</p>
           </div>
         </div>
       </div>
@@ -218,7 +220,7 @@ export default function StudentDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
-            <p className="text-gray-600 font-medium">Please sign in to access your student dashboard.</p>
+            <p className="text-gray-600 font-medium">{t('student.please_sign_in')}</p>
           </div>
         </div>
       </div>
@@ -233,10 +235,10 @@ export default function StudentDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            🎓 Student Dashboard
+            🎓 {t('student.dashboard_title')}
           </h1>
           <p className="text-gray-600">
-            Welcome back, {session?.user?.name}! Track your learning progress and goals.
+            {t('student.welcome_back', { name: session?.user?.name || '' })}
           </p>
         </div>
         
@@ -249,7 +251,7 @@ export default function StudentDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{goals.length}</p>
-                <p className="text-gray-600 text-sm">Active Goals</p>
+                <p className="text-gray-600 text-sm">{t('student.active_goals')}</p>
               </div>
             </div>
           </div>
@@ -261,7 +263,7 @@ export default function StudentDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.learnedTopics}</p>
-                <p className="text-gray-600 text-sm">Topics Learned</p>
+                <p className="text-gray-600 text-sm">{t('student.topics_learned')}</p>
               </div>
             </div>
           </div>
@@ -273,7 +275,7 @@ export default function StudentDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.learningTopics}</p>
-                <p className="text-gray-600 text-sm">Currently Learning</p>
+                <p className="text-gray-600 text-sm">{t('student.currently_learning')}</p>
               </div>
             </div>
           </div>
@@ -285,7 +287,7 @@ export default function StudentDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.wantToLearnTopics}</p>
-                <p className="text-gray-600 text-sm">Want to Learn</p>
+                <p className="text-gray-600 text-sm">{t('student.want_to_learn')}</p>
               </div>
             </div>
           </div>
@@ -297,14 +299,14 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between mb-6">
               <Link href="/student/courses" className="group">
                 <h2 className="text-2xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors cursor-pointer">
-                  Your Courses
+                  {t('student.your_courses')}
                 </h2>
               </Link>
               <Link
                 href="/courses"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-medium"
               >
-                Browse Courses
+                {t('student.browse_courses')}
               </Link>
             </div>
 
@@ -324,7 +326,7 @@ export default function StudentDashboard() {
                           ? 'bg-blue-100 text-blue-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {course.progress === 100 ? '🎉 Completed' : course.progress > 0 ? '📚 In Progress' : '🎯 Enrolled'}
+                        {course.progress === 100 ? `🎉 ${t('student.completed')}` : course.progress > 0 ? `📚 ${t('student.in_progress')}` : `🎯 ${t('student.enrolled')}`}
                       </span>
                     </div>
                     {course.description && (
@@ -334,8 +336,8 @@ export default function StudentDashboard() {
                     {/* Progress Bar */}
                     <div className="mb-3">
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-700">Progress</span>
-                        <span className="text-gray-500">{course.completedTopics}/{course.totalTopics} topics</span>
+                        <span className="text-gray-700">{t('student.progress')}</span>
+                        <span className="text-gray-500">{course.completedTopics}/{course.totalTopics} {t('courses.topics_count_stat', { count: course.totalTopics.toString() }).toLowerCase()}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div className="flex h-full rounded-full overflow-hidden">
@@ -353,8 +355,8 @@ export default function StudentDashboard() {
                     </div>
 
                     <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>{course.progress}% complete</span>
-                      <span>by {course.educator.name}</span>
+                      <span>{t('student.complete', { percent: course.progress.toString() })}</span>
+                      <span>{t('student.by_educator', { name: course.educator.name })}</span>
                     </div>
                   </div>
                 ))}
@@ -364,20 +366,20 @@ export default function StudentDashboard() {
                     href="/student/courses"
                     className="block text-center py-3 text-indigo-600 hover:text-indigo-800 font-medium"
                   >
-                    View all {dashboardData.courses.length} courses →
+                    {t('student.view_all_courses', { count: dashboardData.courses.length.toString() })}
                   </Link>
                 )}
               </div>
             ) : (
               <div className="text-center py-8">
                 <div className="text-4xl mb-4">📚</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No courses yet</h3>
-                <p className="text-gray-600 mb-4">Enroll in courses to start learning with guided instruction!</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('student.no_courses_yet')}</h3>
+                <p className="text-gray-600 mb-4">{t('student.enroll_courses')}</p>
                 <Link
                   href="/courses"
                   className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  Browse Courses
+                  {t('student.browse_courses')}
                 </Link>
               </div>
             )}
@@ -387,14 +389,14 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between mb-6">
               <Link href="/student/goals" className="group">
                 <h2 className="text-2xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors cursor-pointer">
-                  Your Goals
+                  {t('student.your_goals')}
                 </h2>
               </Link>
               <Link
                 href="/student/goals/new"
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
               >
-                Create Goal
+                {t('student.create_goal')}
               </Link>
             </div>
 
@@ -418,7 +420,7 @@ export default function StudentDashboard() {
                             ? 'bg-red-100 text-red-800' 
                             : 'bg-blue-100 text-blue-800'
                         }`}>
-                          {completed ? '🎉 Completed' : goal.deadline && isGoalOverdue(goal.deadline) ? '⏰ Overdue' : '📚 Active'}
+                          {completed ? `🎉 ${t('student.completed')}` : goal.deadline && isGoalOverdue(goal.deadline) ? `⏰ ${t('student.overdue')}` : `📚 ${t('student.active')}`}
                         </span>
                       </div>
                       {goal.description && (
@@ -428,8 +430,8 @@ export default function StudentDashboard() {
                       {/* Progress Bar */}
                       <div className="mb-3">
                         <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-gray-700">Progress</span>
-                          <span className="text-gray-500">{progress.completed}/{progress.total} topics</span>
+                          <span className="text-gray-700">{t('student.progress')}</span>
+                          <span className="text-gray-500">{progress.completed}/{progress.total} {t('courses.topics_count_stat', { count: progress.total.toString() }).toLowerCase()}</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div className="flex h-full rounded-full overflow-hidden">
@@ -447,9 +449,9 @@ export default function StudentDashboard() {
                       </div>
 
                       <div className="flex items-center justify-between text-sm text-gray-500">
-                        <span>{progress.percentage}% complete</span>
+                        <span>{t('student.complete', { percent: progress.percentage.toString() })}</span>
                         {goal.deadline && (
-                          <span>Due: {new Date(goal.deadline).toLocaleDateString()}</span>
+                          <span>{t('student.due_date', { date: new Date(goal.deadline).toLocaleDateString() })}</span>
                         )}
                       </div>
                     </div>
@@ -461,20 +463,20 @@ export default function StudentDashboard() {
                     href="/student/goals"
                     className="block text-center py-3 text-indigo-600 hover:text-indigo-800 font-medium"
                   >
-                    View all {goals.length} goals →
+                    {t('student.view_all_goals', { count: goals.length.toString() })}
                   </Link>
                 )}
               </div>
             ) : (
               <div className="text-center py-8">
                 <div className="text-4xl mb-4">🎯</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No goals yet</h3>
-                <p className="text-gray-600 mb-4">Create your first learning goal to get started!</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('student.no_goals_yet')}</h3>
+                <p className="text-gray-600 mb-4">{t('student.create_first_goal')}</p>
                 <Link
                   href="/student/goals/new"
                   className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  Create Your First Goal
+                  {t('student.create_your_first_goal')}
                 </Link>
               </div>
             )}
@@ -485,21 +487,21 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between mb-6">
               <Link href="/student/topics" className="group">
                 <h2 className="text-2xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors cursor-pointer">
-                  Learning Progress
+                  {t('student.learning_progress')}
                 </h2>
               </Link>
               <Link
                 href="/knowledge-graph"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-medium"
               >
-                View Graph
+                {t('student.view_graph')}
               </Link>
             </div>
 
             {dashboardData?.recentChanges && dashboardData.recentChanges.length > 0 ? (
               <div className="space-y-3">
                 <div className="text-sm text-gray-600 mb-4">
-                  Recent topic status changes ({dashboardData.recentChanges.length} changes):
+                  {t('student.recent_changes', { count: dashboardData.recentChanges.length.toString() })}
                 </div>
                 {dashboardData.recentChanges.slice(0, 5).map((change) => (
                   <div
@@ -519,7 +521,10 @@ export default function StudentDashboard() {
                       <div>
                         <span className="font-medium text-gray-900 block">{change.topic.name}</span>
                         <span className="text-xs text-gray-500">
-                          Changed {new Date(change.updatedAt).toLocaleDateString()} at {new Date(change.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {t('student.changed_at', { 
+                            date: new Date(change.updatedAt).toLocaleDateString(), 
+                            time: new Date(change.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                          })}
                         </span>
                       </div>
                     </div>
@@ -531,10 +536,10 @@ export default function StudentDashboard() {
                         change.status === 'WANT_TO_LEARN' ? 'bg-purple-100 text-purple-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                        {change.status === 'LEARNED_AND_VALIDATED' ? '✅ Validated' :
-                         change.status === 'LEARNED' ? '🎯 Learned' :
-                         change.status === 'LEARNING' ? '📖 Learning' :
-                         change.status === 'WANT_TO_LEARN' ? '💭 Want to Learn' :
+                        {change.status === 'LEARNED_AND_VALIDATED' ? `✅ ${t('student.validated')}` :
+                         change.status === 'LEARNED' ? `🎯 ${t('student.learned')}` :
+                         change.status === 'LEARNING' ? `📖 ${t('student.learning')}` :
+                         change.status === 'WANT_TO_LEARN' ? `💭 ${t('student.want_to_learn_status')}` :
                          change.status.replace('_', ' ').toLowerCase()}
                       </span>
                     </div>
@@ -544,7 +549,7 @@ export default function StudentDashboard() {
                 {dashboardData.recentChanges.length > 5 && (
                   <div className="text-center py-2">
                     <span className="text-sm text-gray-500">
-                      {dashboardData.recentChanges.length - 5} more changes in your learning history
+                      {t('student.more_changes', { count: (dashboardData.recentChanges.length - 5).toString() })}
                     </span>
                   </div>
                 )}
@@ -552,20 +557,20 @@ export default function StudentDashboard() {
             ) : (
               <div className="text-center py-8">
                 <div className="text-4xl mb-4">📊</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No learning activity yet</h3>
-                <p className="text-gray-600 mb-4">Start learning and your progress will appear here!</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('student.no_learning_activity')}</h3>
+                <p className="text-gray-600 mb-4">{t('student.start_learning')}</p>
                 <div className="flex items-center justify-center space-x-4">
                   <Link
                     href="/knowledge-graph"
                     className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
                   >
-                    Explore Topics
+                    {t('student.explore_topics')}
                   </Link>
                   <Link
                     href="/student/goals/new"
                     className="inline-block px-4 py-2 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors text-sm"
                   >
-                    Set Goals
+                    {t('student.set_goals')}
                   </Link>
                 </div>
               </div>

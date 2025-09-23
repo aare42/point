@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Topic {
   id: string
@@ -48,6 +49,7 @@ interface Goal {
 
 export default function EmployerDashboard() {
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [candidateGoals, setCandidateGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
@@ -105,7 +107,7 @@ export default function EmployerDashboard() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+            <p className="text-gray-600 font-medium">{t('student.loading_dashboard')}</p>
           </div>
         </div>
       </div>
@@ -117,7 +119,7 @@ export default function EmployerDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
-            <p className="text-gray-600 font-medium">Please sign in to access your employer dashboard.</p>
+            <p className="text-gray-600 font-medium">{t('student.please_sign_in')}</p>
           </div>
         </div>
       </div>
@@ -132,10 +134,10 @@ export default function EmployerDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            💼 Employer Dashboard
+            💼 {t('employer.dashboard_title')}
           </h1>
           <p className="text-gray-600">
-            Welcome back, {session?.user?.name}! Manage your job postings and discover talented candidates.
+            {t('employer.welcome_back', { name: session?.user?.name || '' })}
           </p>
         </div>
 
@@ -148,7 +150,7 @@ export default function EmployerDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.totalVacancies}</p>
-                <p className="text-gray-600 text-sm">Open Positions</p>
+                <p className="text-gray-600 text-sm">{t('employer.open_positions')}</p>
               </div>
             </div>
           </div>
@@ -160,7 +162,7 @@ export default function EmployerDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.totalTopicsRequired}</p>
-                <p className="text-gray-600 text-sm">Skills Required</p>
+                <p className="text-gray-600 text-sm">{t('employer.skills_required')}</p>
               </div>
             </div>
           </div>
@@ -172,7 +174,7 @@ export default function EmployerDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.uniqueTopics}</p>
-                <p className="text-gray-600 text-sm">Unique Skills</p>
+                <p className="text-gray-600 text-sm">{t('employer.unique_skills')}</p>
               </div>
             </div>
           </div>
@@ -184,7 +186,7 @@ export default function EmployerDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.averageTopicsPerVacancy}</p>
-                <p className="text-gray-600 text-sm">Avg. per Position</p>
+                <p className="text-gray-600 text-sm">{t('employer.avg_per_position')}</p>
               </div>
             </div>
           </div>
@@ -194,12 +196,12 @@ export default function EmployerDashboard() {
           {/* Your Vacancies */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Your Job Postings</h2>
+              <h2 className="text-2xl font-bold text-gray-900">{t('employer.your_job_postings')}</h2>
               <Link
                 href="/employer/vacancies/create"
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
               >
-                Post Job
+                {t('employer.post_job')}
               </Link>
             </div>
 
@@ -214,15 +216,15 @@ export default function EmployerDashboard() {
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="font-semibold text-gray-900">{vacancy.name}</h3>
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                        Active
+                        {t('employer.active')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        <span>{vacancy._count.topics} skills required</span>
+                        <span>{t('employer.skills_required_count', { count: vacancy._count.topics.toString() })}</span>
                       </div>
                       <span className="text-sm text-gray-500">
-                        Posted {new Date(vacancy.createdAt).toLocaleDateString()}
+                        {t('employer.posted_date', { date: new Date(vacancy.createdAt).toLocaleDateString() })}
                       </span>
                     </div>
                   </div>
@@ -233,20 +235,20 @@ export default function EmployerDashboard() {
                     href="/employer/vacancies"
                     className="block text-center py-3 text-indigo-600 hover:text-indigo-800 font-medium"
                   >
-                    View all {vacancies.length} positions →
+                    {t('employer.view_all_positions', { count: vacancies.length.toString() })}
                   </Link>
                 )}
               </div>
             ) : (
               <div className="text-center py-8">
                 <div className="text-4xl mb-4">💼</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No job postings yet</h3>
-                <p className="text-gray-600 mb-4">Create your first job posting to start hiring!</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('employer.no_job_postings')}</h3>
+                <p className="text-gray-600 mb-4">{t('employer.create_first_posting')}</p>
                 <Link
                   href="/employer/vacancies/create"
                   className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  Post Your First Job
+                  {t('employer.post_first_job')}
                 </Link>
               </div>
             )}
@@ -255,12 +257,12 @@ export default function EmployerDashboard() {
           {/* Potential Candidates */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Potential Candidates</h2>
+              <h2 className="text-2xl font-bold text-gray-900">{t('employer.potential_candidates')}</h2>
               <Link
                 href="/goals"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-medium"
               >
-                Browse All
+                {t('employer.browse_all')}
               </Link>
             </div>
 
@@ -279,7 +281,7 @@ export default function EmployerDashboard() {
                       <div>
                         <div className="font-medium text-gray-900">{goal.user?.name || 'Unknown User'}</div>
                         <div className="text-sm text-gray-600">{goal.name}</div>
-                        <div className="text-xs text-gray-500">{goal._count.topics} skills</div>
+                        <div className="text-xs text-gray-500">{t('employer.skills_count', { count: goal._count.topics.toString() })}</div>
                       </div>
                     </div>
                     {goal.deadline && (
@@ -288,7 +290,7 @@ export default function EmployerDashboard() {
                           ? 'bg-red-100 text-red-800' 
                           : 'bg-green-100 text-green-800'
                       }`}>
-                        {isGoalOverdue(goal.deadline) ? '⏰ Overdue' : '🎯 Active'}
+                        {isGoalOverdue(goal.deadline) ? `⏰ ${t('student.overdue')}` : `🎯 ${t('employer.active')}`}
                       </span>
                     )}
                   </div>
@@ -297,13 +299,13 @@ export default function EmployerDashboard() {
             ) : (
               <div className="text-center py-8">
                 <div className="text-4xl mb-4">🎓</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No candidates yet</h3>
-                <p className="text-gray-600 mb-4">Students will appear here as they set learning goals!</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('employer.no_candidates')}</h3>
+                <p className="text-gray-600 mb-4">{t('employer.students_will_appear')}</p>
                 <Link
                   href="/goals"
                   className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  Browse Learning Goals
+                  {t('employer.browse_learning_goals')}
                 </Link>
               </div>
             )}
@@ -312,7 +314,7 @@ export default function EmployerDashboard() {
 
         {/* Quick Actions */}
         <div className="mt-8 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-100">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Quick Actions</h3>
+          <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">{t('employer.quick_actions')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
               href="/employer/vacancies/create"
@@ -320,8 +322,8 @@ export default function EmployerDashboard() {
             >
               <span className="text-2xl">➕</span>
               <div>
-                <div className="font-semibold text-gray-900">Post New Job</div>
-                <div className="text-sm text-gray-600">Create a job posting with skill requirements</div>
+                <div className="font-semibold text-gray-900">{t('employer.post_new_job')}</div>
+                <div className="text-sm text-gray-600">{t('employer.post_job_description')}</div>
               </div>
             </Link>
 
@@ -331,8 +333,8 @@ export default function EmployerDashboard() {
             >
               <span className="text-2xl">🎯</span>
               <div>
-                <div className="font-semibold text-gray-900">Browse Candidates</div>
-                <div className="text-sm text-gray-600">Find learners with relevant skills</div>
+                <div className="font-semibold text-gray-900">{t('employer.browse_candidates')}</div>
+                <div className="text-sm text-gray-600">{t('employer.browse_candidates_description')}</div>
               </div>
             </Link>
 
@@ -342,8 +344,8 @@ export default function EmployerDashboard() {
             >
               <span className="text-2xl">🧠</span>
               <div>
-                <div className="font-semibold text-gray-900">Skill Map</div>
-                <div className="text-sm text-gray-600">Explore skill relationships and dependencies</div>
+                <div className="font-semibold text-gray-900">{t('employer.skill_map')}</div>
+                <div className="text-sm text-gray-600">{t('employer.skill_map_description')}</div>
               </div>
             </Link>
           </div>

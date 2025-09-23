@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function AdminPage() {
+  const { t } = useLanguage()
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -80,10 +82,10 @@ export default function AdminPage() {
         <div className="relative px-8 py-12">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              🚀 Admin Dashboard
+              🚀 {t('admin.dashboard_title')}
             </h1>
             <p className="text-xl text-indigo-200 max-w-2xl mx-auto">
-              Platform administration split into analytics and data management
+              {t('admin.platform_admin')}
             </p>
           </div>
         </div>
@@ -96,8 +98,8 @@ export default function AdminPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-green-200">
           <div className="text-center mb-6">
             <div className="text-4xl mb-4">📤</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Export Database</h2>
-            <p className="text-gray-600">Download complete database backup as JSON</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('admin.export_database')}</h2>
+            <p className="text-gray-600">{t('admin.export_description')}</p>
           </div>
           
           <div className="text-center">
@@ -112,14 +114,14 @@ export default function AdminPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Exporting...
+                  {t('admin.exporting')}
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Download Backup
+                  {t('admin.download_backup')}
                 </>
               )}
             </button>
@@ -130,8 +132,8 @@ export default function AdminPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-orange-200">
           <div className="text-center mb-6">
             <div className="text-4xl mb-4">📥</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Import Database</h2>
-            <p className="text-gray-600">Import topics and other data from JSON backup files</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('admin.import_database')}</h2>
+            <p className="text-gray-600">{t('admin.import_description')}</p>
           </div>
         
         <div className="max-w-md mx-auto">
@@ -141,7 +143,7 @@ export default function AdminPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
               <p className="text-sm text-orange-600">
-                <span className="font-semibold">Click to upload</span> JSON backup file
+                <span className="font-semibold">{t('admin.click_upload')}</span> {t('admin.json_backup_file')}
               </p>
             </div>
             <input 
@@ -159,7 +161,7 @@ export default function AdminPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Importing...
+              {t('admin.importing')}
             </div>
           )}
           
@@ -182,13 +184,13 @@ export default function AdminPage() {
           <div className="p-12">
             <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-300 text-center">📊</div>
             <h2 className="text-3xl font-bold text-gray-900 mb-4 group-hover:text-indigo-700 transition-colors text-center">
-              Analytics
+              {t('admin.analytics')}
             </h2>
             <p className="text-gray-600 group-hover:text-gray-800 transition-colors text-center text-lg">
-              View platform statistics, user engagement metrics, and detailed insights about your educational ecosystem
+              {t('admin.analytics_description')}
             </p>
             <div className="mt-8 flex items-center justify-center text-indigo-600 group-hover:text-indigo-800">
-              <span className="font-medium text-lg">View Analytics</span>
+              <span className="font-medium text-lg">{t('admin.view_analytics')}</span>
               <svg className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
@@ -204,13 +206,35 @@ export default function AdminPage() {
           <div className="p-12">
             <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-300 text-center">⚙️</div>
             <h2 className="text-3xl font-bold text-gray-900 mb-4 group-hover:text-emerald-700 transition-colors text-center">
-              Manage Data
+              {t('admin.manage_data')}
             </h2>
             <p className="text-gray-600 group-hover:text-gray-800 transition-colors text-center text-lg">
-              Create, edit, and delete platform entities: topics, courses, users, goals, and vacancies
+              {t('admin.manage_data_description')}
             </p>
             <div className="mt-8 flex items-center justify-center text-emerald-600 group-hover:text-emerald-800">
-              <span className="font-medium text-lg">Manage Data</span>
+              <span className="font-medium text-lg">{t('admin.manage_data')}</span>
+              <svg className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/translations"
+          className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+          <div className="p-12">
+            <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-300 text-center">🌐</div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4 group-hover:text-purple-700 transition-colors text-center">
+              Translations
+            </h2>
+            <p className="text-gray-600 group-hover:text-gray-800 transition-colors text-center text-lg">
+              Add English translations for Ukrainian content
+            </p>
+            <div className="mt-8 flex items-center justify-center text-purple-600 group-hover:text-purple-800">
+              <span className="font-medium text-lg">Manage Translations</span>
               <svg className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>

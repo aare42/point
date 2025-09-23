@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" 
+  provider = "sqlite" 
   url      = env("DATABASE_URL")
 }
 
@@ -73,11 +73,11 @@ model User {
 // Core educational entities
 model Topic {
   id           String      @id @default(cuid())
-  name         String
+  name         Json        // Multilingual: {"en": "English", "uk": "Українська"}
   slug         String      @unique
   type         TopicType
-  keypoints    String      // JSON string of key learning points
-  description  String?
+  keypoints    Json        // Multilingual JSON: {"en": "key points", "uk": "ключові моменти"}
+  description  Json?       // Multilingual: {"en": "description", "uk": "опис"}
   authorId     String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

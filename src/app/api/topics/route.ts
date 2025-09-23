@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createTopicSchema } from '@/lib/validations/topic'
 import { withAuth } from '@/lib/auth/middleware'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url)
+    const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
+    
     const topics = await prisma.topic.findMany({
       include: {
         author: {
@@ -38,7 +42,32 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json(topics)
+    // Transform topics to include localized text
+    const localizedTopics = topics.map(topic => ({
+      ...topic,
+      name: topic.name,
+      description: topic.description,
+      keypoints: topic.keypoints,
+      localizedName: getLocalizedText(topic.name as any, language),
+      localizedDescription: getLocalizedText(topic.description as any, language),
+      localizedKeypoints: getLocalizedText(topic.keypoints as any, language),
+      prerequisites: topic.prerequisites.map(p => ({
+        ...p,
+        prerequisite: {
+          ...p.prerequisite,
+          localizedName: getLocalizedText(p.prerequisite.name as any, language)
+        }
+      })),
+      dependents: topic.dependents.map(d => ({
+        ...d,
+        topic: {
+          ...d.topic,
+          localizedName: getLocalizedText(d.topic.name as any, language)
+        }
+      }))
+    }))
+
+    return NextResponse.json(localizedTopics)
   } catch (error) {
     console.error('Error fetching topics:', error)
     return NextResponse.json(

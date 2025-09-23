@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Course {
   id: string
-  name: string
-  description?: string
+  name: any // Multilingual object or string
+  description?: any // Multilingual object or string
   isPublic: boolean
   createdAt: string
   educator: {
@@ -20,6 +22,7 @@ interface Course {
 }
 
 export default function AdminCoursesPage() {
+  const { language } = useLanguage()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -46,8 +49,9 @@ export default function AdminCoursesPage() {
     }
   }
 
-  const deleteCourse = async (courseId: string, courseName: string) => {
-    if (!confirm(`Are you sure you want to delete the course "${courseName}"? This will remove all enrollments and cannot be undone.`)) {
+  const deleteCourse = async (courseId: string, courseName: any) => {
+    const localizedName = getLocalizedText(courseName, language, 'Unknown')
+    if (!confirm(`Are you sure you want to delete the course "${localizedName}"? This will remove all enrollments and cannot be undone.`)) {
       return
     }
 
@@ -94,11 +98,13 @@ export default function AdminCoursesPage() {
     }
   }
 
-  const filteredCourses = courses.filter(course =>
-    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.educator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredCourses = courses.filter(course => {
+    const localizedName = getLocalizedText(course.name, language, '')
+    const localizedDescription = getLocalizedText(course.description, language, '')
+    return localizedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           course.educator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           localizedDescription.toLowerCase().includes(searchTerm.toLowerCase())
+  })
 
   if (loading) {
     return (
@@ -177,10 +183,12 @@ export default function AdminCoursesPage() {
                   <tr key={course.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{course.name}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {getLocalizedText(course.name, language, 'Unknown')}
+                        </div>
                         {course.description && (
                           <div className="text-sm text-gray-500 truncate max-w-md">
-                            {course.description}
+                            {getLocalizedText(course.description, language, '')}
                           </div>
                         )}
                       </div>

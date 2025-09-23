@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { createMultilingualText } from '@/lib/utils/multilingual'
 
 const createVacancySchema = z.object({
   name: z.string().min(1, 'Vacancy name is required').max(200),
@@ -21,10 +22,16 @@ export async function GET(req: NextRequest) {
     // Check if user is admin
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { role: true }
+      select: { role: true, email: true }
     })
 
-    if (user?.role !== 'ADMIN') {
+    console.log('Session user ID:', session.user.id)
+    console.log('Session user email:', session.user.email) 
+    console.log('Database user found:', user)
+    console.log('User role:', user?.role)
+
+    if (!['ADMIN', 'EDITOR'].includes(user?.role || '')) {
+      console.log('Access denied for user:', session.user.email, 'with role:', user?.role)
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -66,10 +73,16 @@ export async function POST(req: NextRequest) {
     // Check if user is admin
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { role: true }
+      select: { role: true, email: true }
     })
 
-    if (user?.role !== 'ADMIN') {
+    console.log('Session user ID:', session.user.id)
+    console.log('Session user email:', session.user.email) 
+    console.log('Database user found:', user)
+    console.log('User role:', user?.role)
+
+    if (!['ADMIN', 'EDITOR'].includes(user?.role || '')) {
+      console.log('Access denied for user:', session.user.email, 'with role:', user?.role)
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -78,10 +91,10 @@ export async function POST(req: NextRequest) {
 
     // Create vacancy in a transaction
     const vacancy = await prisma.$transaction(async (tx) => {
-      // Create vacancy
+      // Create vacancy with multilingual name
       const newVacancy = await tx.vacancy.create({
         data: {
-          name,
+          name: createMultilingualText(name),
           authorId: session.user.id
         }
       })

@@ -4,18 +4,20 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: any // Multilingual
   slug: string
   type: TopicType
-  description?: string
-  keypoints: string
+  description?: any // Multilingual
+  keypoints: any // Multilingual
   prerequisites: {
     prerequisite: {
       id: string
-      name: string
+      name: any // Multilingual
       slug: string
       type: TopicType
     }
@@ -24,7 +26,7 @@ interface Topic {
 
 interface TopicOption {
   id: string
-  name: string
+  name: any // Multilingual
   slug: string
   type: TopicType
 }
@@ -32,6 +34,7 @@ interface TopicOption {
 export default function EditTopicPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const router = useRouter()
+  const { language } = useLanguage()
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [availableTopics, setAvailableTopics] = useState<TopicOption[]>([])
@@ -58,11 +61,11 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
       
       const topic: Topic = await response.json()
       setFormData({
-        name: topic.name,
+        name: getLocalizedText(topic.name, language, ''),
         slug: topic.slug,
         type: topic.type,
-        description: topic.description || '',
-        keypoints: topic.keypoints,
+        description: getLocalizedText(topic.description, language, ''),
+        keypoints: getLocalizedText(topic.keypoints, language, ''),
         prerequisiteIds: topic.prerequisites.map(p => p.prerequisite.id),
       })
     } catch (error) {
@@ -130,7 +133,8 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
   }
 
   const filteredTopics = availableTopics.filter(topic => {
-    const matchesSearch = topic.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const topicName = getLocalizedText(topic.name, language, '').toLowerCase()
+    const matchesSearch = topicName.includes(searchTerm.toLowerCase()) ||
                          topic.slug.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = typeFilter === 'ALL' || topic.type === typeFilter
     const canBePrerequisite = topic.type !== 'PROJECT' // Projects cannot be prerequisites for other topics
@@ -278,7 +282,7 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
                       className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border ${getTypeColor(topic.type)} shadow-sm`}
                     >
                       <span>{getTypeIcon(topic.type)}</span>
-                      <span>{topic.name}</span>
+                      <span>{getLocalizedText(topic.name, language)}</span>
                       <button
                         type="button"
                         onClick={() => removePrerequisite(topic.id)}
@@ -356,7 +360,7 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
                             <span className="text-lg">{getTypeIcon(topic.type)}</span>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium text-gray-900 group-hover:text-indigo-900">
-                                {topic.name}
+                                {getLocalizedText(topic.name, language)}
                               </div>
                               <div className="text-xs text-gray-500 truncate">
                                 /{topic.slug}

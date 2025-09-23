@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Topic {
   id: string
@@ -48,6 +49,7 @@ const statusColors = {
 export default function GoalTemplatesPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [goals, setGoals] = useState<GoalTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -115,7 +117,7 @@ export default function GoalTemplatesPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">Loading goals...</p>
+            <p className="text-gray-600 font-medium">{t('goals.loading')}</p>
           </div>
         </div>
       </div>
@@ -130,10 +132,10 @@ export default function GoalTemplatesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                🎯 Browse Goals
+                🎯 {t('goals.browse_title')}
               </h1>
               <p className="text-gray-600">
-                Discover learning goals and get inspired by what others are working towards
+                {t('goals.discover_goals')}
               </p>
             </div>
             
@@ -143,13 +145,13 @@ export default function GoalTemplatesPage() {
                 href="/student"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
-                Student Dashboard
+                {t('courses.student_dashboard')}
               </Link>
               <Link
                 href="/knowledge-graph"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
-                Knowledge Graph
+                {t('courses.knowledge_graph')}
               </Link>
             </div>
           </div>
@@ -160,7 +162,7 @@ export default function GoalTemplatesPage() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search goal templates by name, author, description, or motivation..."
+              placeholder={t('goals.search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -174,15 +176,18 @@ export default function GoalTemplatesPage() {
         {/* Results Info */}
         <div className="mb-6 flex items-center justify-between">
           <div className="text-gray-600">
-            Found <strong>{filteredGoals.length}</strong> goal template{filteredGoals.length !== 1 ? 's' : ''}
-            {searchQuery && ` matching "${searchQuery}"`}
+            {t('goals.found_templates', { 
+              count: filteredGoals.length.toString(), 
+              plural: filteredGoals.length !== 1 ? 's' : '' 
+            })}
+            {searchQuery && ` ${t('courses.matching_search', { query: searchQuery })}`}
           </div>
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
               className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
             >
-              Clear search
+              {t('goals.clear_search')}
             </button>
           )}
         </div>
@@ -231,7 +236,7 @@ export default function GoalTemplatesPage() {
                   {/* Topics Preview */}
                   {goal.topics.length > 0 && (
                     <div className="mb-4">
-                      <div className="text-sm font-medium text-gray-700 mb-2">Learning Topics:</div>
+                      <div className="text-sm font-medium text-gray-700 mb-2">{t('goals.learning_topics')}</div>
                       <div className="flex flex-wrap gap-1">
                         {goal.topics.slice(0, 3).map((goalTopic) => {
                           const status = session?.user ? getTopicStatus(goalTopic.topic.id) : 'NOT_LEARNED'
@@ -253,7 +258,7 @@ export default function GoalTemplatesPage() {
                         })}
                         {goal.topics.length > 3 && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            +{goal.topics.length - 3} more
+                            {t('courses.more_topics', { count: (goal.topics.length - 3).toString() })}
                           </span>
                         )}
                       </div>
@@ -267,13 +272,13 @@ export default function GoalTemplatesPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
-                        <span>{goal._count.topics} topics</span>
+                        <span>{t('courses.topics_count_stat', { count: goal._count.topics.toString() })}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
-                        <span>{goal._count.goals} students used</span>
+                        <span>{t('goals.students_used', { count: goal._count.goals.toString() })}</span>
                       </span>
                     </div>
                     <div className="text-xs text-gray-400">
@@ -290,19 +295,19 @@ export default function GoalTemplatesPage() {
               {searchQuery ? '🔍' : '🎯'}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              {searchQuery ? 'No goal templates found' : 'No goal templates available yet'}
+              {searchQuery ? t('goals.no_templates_found') : t('goals.no_templates_available')}
             </h3>
             <p className="text-gray-600 mb-6">
               {searchQuery
-                ? 'Try adjusting your search terms to find more goal templates.'
-                : 'No goal templates have been created yet. Check back later or contact an admin to create some templates!'}
+                ? t('goals.adjust_search_templates')
+                : t('goals.no_templates_created')}
             </p>
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                Clear Search
+                {t('goals.clear_search_button')}
               </button>
             )}
           </div>
@@ -312,22 +317,22 @@ export default function GoalTemplatesPage() {
         {goals.length > 0 && (
           <div className="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 text-center border border-indigo-100">
             <div className="text-4xl mb-4">💡</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Inspired by These Goals?</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('goals.inspired_by_goals')}</h3>
             <p className="text-gray-600 mb-6">
-              Start your own learning journey by setting goals and exploring courses that match your ambitions.
+              {t('goals.start_learning_journey')}
             </p>
             <div className="flex items-center justify-center space-x-4">
               <Link
                 href="/student"
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                Create Your Goals
+                {t('goals.create_your_goals')}
               </Link>
               <Link
                 href="/courses"
                 className="px-6 py-3 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
               >
-                Find Courses
+                {t('goals.find_courses')}
               </Link>
             </div>
           </div>

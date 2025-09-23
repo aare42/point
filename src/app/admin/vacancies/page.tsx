@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: any // Multilingual object or string
   slug: string
   type: string
 }
 
 interface Vacancy {
   id: string
-  name: string
+  name: any // Multilingual object or string
   createdAt: string
   author: {
     name?: string
@@ -24,6 +26,7 @@ interface Vacancy {
 }
 
 export default function AdminVacanciesPage() {
+  const { language } = useLanguage()
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,8 +104,9 @@ export default function AdminVacanciesPage() {
     }
   }
 
-  const handleDeleteVacancy = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+  const handleDeleteVacancy = async (id: string, name: any) => {
+    const localizedName = getLocalizedText(name, language, 'Unknown')
+    if (!confirm(`Are you sure you want to delete "${localizedName}"?`)) {
       return
     }
 
@@ -132,10 +136,11 @@ export default function AdminVacanciesPage() {
     }))
   }
 
-  const filteredVacancies = vacancies.filter(vacancy =>
-    vacancy.name.toLowerCase().includes(search.toLowerCase()) ||
-    vacancy.author.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredVacancies = vacancies.filter(vacancy => {
+    const localizedName = getLocalizedText(vacancy.name, language, '')
+    return localizedName.toLowerCase().includes(search.toLowerCase()) ||
+           vacancy.author.email.toLowerCase().includes(search.toLowerCase())
+  })
 
   if (loading) {
     return (
@@ -200,7 +205,7 @@ export default function AdminVacanciesPage() {
                       onChange={() => handleTopicToggle(topic.id)}
                       className="rounded"
                     />
-                    <span className="text-sm">{topic.name}</span>
+                    <span className="text-sm">{getLocalizedText(topic.name, language, 'Unknown')}</span>
                     <span className="text-xs text-gray-500 uppercase bg-gray-100 px-1 rounded">
                       {topic.type}
                     </span>
@@ -268,7 +273,9 @@ export default function AdminVacanciesPage() {
             {filteredVacancies.map((vacancy) => (
               <tr key={vacancy.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{vacancy.name}</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {getLocalizedText(vacancy.name, language, 'Unknown')}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">

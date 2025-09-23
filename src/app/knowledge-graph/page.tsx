@@ -3,20 +3,22 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import KnowledgeGraph from '@/components/KnowledgeGraph'
+import { useLanguage } from '@/contexts/LanguageContext'
 import { TopicType } from '@prisma/client'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: any // Multilingual object
   slug: string
   type: TopicType
-  description?: string
-  keypoints: string
+  description?: any // Multilingual object
+  keypoints: any // Multilingual object
   status: string // Student's learning status
   prerequisites: {
     prerequisite: {
       id: string
-      name: string
+      name: any // Multilingual object
       slug: string
       type: TopicType
     }
@@ -41,6 +43,7 @@ interface GraphLink {
 
 export default function KnowledgeGraphPage() {
   const router = useRouter()
+  const { t, language } = useLanguage()
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedNodeId, setSelectedNodeId] = useState<string>('')
@@ -53,11 +56,11 @@ export default function KnowledgeGraphPage() {
   const [loadingCourses, setLoadingCourses] = useState(false)
 
   const statusLabels = {
-    NOT_LEARNED: 'Not Learned',
-    WANT_TO_LEARN: 'Want to Learn',
-    LEARNING: 'Learning',
-    LEARNED: 'Learned',
-    LEARNED_AND_VALIDATED: 'Validated'
+    NOT_LEARNED: t('status.not_learned'),
+    WANT_TO_LEARN: t('status.want_to_learn'),
+    LEARNING: t('status.learning'),
+    LEARNED: t('status.learned'),
+    LEARNED_AND_VALIDATED: t('status.validated')
   }
 
   const statusColors = {
@@ -73,11 +76,11 @@ export default function KnowledgeGraphPage() {
   useEffect(() => {
     setMounted(true)
     fetchTopics()
-  }, [])
+  }, [language])
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('/api/student/topics')
+      const response = await fetch(`/api/student/topics?lang=${language}`)
       if (response.ok) {
         const data = await response.json()
         setTopics(data)
@@ -123,17 +126,18 @@ export default function KnowledgeGraphPage() {
   const prepareGraphData = () => {
     // Always include all topics to maintain graph structure
     const nodes: GraphNode[] = topics.map(topic => {
+      const topicName = getLocalizedText(topic.name, language)
       const matchesSearch = searchQuery === '' || 
-        topic.name.toLowerCase().includes(searchQuery.toLowerCase())
+        topicName.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesType = filterType === 'ALL' || topic.type === filterType
       
       return {
         id: topic.id,
-        name: topic.name,
+        name: topicName,
         slug: topic.slug,
         type: topic.type,
-        description: topic.description,
-        keypoints: topic.keypoints,
+        description: getLocalizedText(topic.description, language),
+        keypoints: getLocalizedText(topic.keypoints, language),
         status: topic.status,
         highlighted: matchesSearch && matchesType
       }
@@ -215,10 +219,10 @@ export default function KnowledgeGraphPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                🧠 Knowledge Graph
+                🧠 {t('graph.title')}
               </h1>
               <p className="text-gray-600">
-                Explore the interconnected learning paths and prerequisites
+                {t('graph.subtitle')}
               </p>
             </div>
             
@@ -232,14 +236,14 @@ export default function KnowledgeGraphPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span>Dashboard</span>
+                <span>{t('nav.dashboard')}</span>
               </button>
               
               {/* Search Input */}
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search topics..."
+                  placeholder={t('graph.search_topics')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white w-64"
@@ -265,10 +269,10 @@ export default function KnowledgeGraphPage() {
                 onChange={(e) => setFilterType(e.target.value as TopicType | 'ALL')}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
               >
-                <option value="ALL">Highlight All Types</option>
-                <option value="THEORY">📚 Highlight Theory</option>
-                <option value="PRACTICE">⚙️ Highlight Practice</option>
-                <option value="PROJECT">🚀 Highlight Projects</option>
+                <option value="ALL">{t('graph.highlight_all')}</option>
+                <option value="THEORY">📚 {t('graph.highlight_theory')}</option>
+                <option value="PRACTICE">⚙️ {t('graph.highlight_practice')}</option>
+                <option value="PROJECT">🚀 {t('graph.highlight_projects')}</option>
               </select>
             </div>
           </div>
@@ -278,7 +282,7 @@ export default function KnowledgeGraphPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div className="text-2xl font-bold text-indigo-600">{graphData.nodes.length}</div>
-            <div className="text-sm text-gray-600">Total Topics</div>
+            <div className="text-sm text-gray-600">{t('graph.total_topics')}</div>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div className="text-2xl font-bold text-green-600">
@@ -288,14 +292,14 @@ export default function KnowledgeGraphPage() {
               ).length}
             </div>
             <div className="text-sm text-gray-600">
-              {searchQuery || filterType !== 'ALL' ? 'Highlighted' : 'Visible'} Topics
+              {searchQuery || filterType !== 'ALL' ? t('graph.highlighted_topics') : t('graph.total_topics')}
             </div>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div className="text-2xl font-bold text-purple-600">
               {graphData.nodes.filter(n => n.type === 'PROJECT').length}
             </div>
-            <div className="text-sm text-gray-600">Projects</div>
+            <div className="text-sm text-gray-600">{t('graph.projects')}</div>
           </div>
         </div>
         
@@ -332,7 +336,7 @@ export default function KnowledgeGraphPage() {
             <div className="flex-1 bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
               <div className="mb-4 flex items-center justify-end">
                 <div className="text-sm text-gray-500">
-                  Zoom with mouse wheel • Click nodes for details
+                  {t('graph.zoom_instructions')}
                 </div>
               </div>
               
@@ -482,7 +486,7 @@ export default function KnowledgeGraphPage() {
                                   {prereq.prerequisite.type === 'PROJECT' && '🚀'}
                                 </div>
                                 <div className="flex-1">
-                                  <div className="font-medium text-gray-900 text-sm">{prereq.prerequisite.name}</div>
+                                  <div className="font-medium text-gray-900 text-sm">{getLocalizedText(prereq.prerequisite.name, language)}</div>
                                   <div className="text-xs text-gray-500 capitalize">{prereq.prerequisite.type?.toLowerCase() || 'unknown'}</div>
                                 </div>
                               </div>
@@ -524,7 +528,7 @@ export default function KnowledgeGraphPage() {
                                   {dependent.type === 'PROJECT' && '🚀'}
                                 </div>
                                 <div className="flex-1">
-                                  <div className="font-medium text-gray-900 text-sm">{dependent.name}</div>
+                                  <div className="font-medium text-gray-900 text-sm">{getLocalizedText(dependent.name, language)}</div>
                                   <div className="text-xs text-gray-500 capitalize">{dependent.type?.toLowerCase() || 'unknown'}</div>
                                 </div>
                               </div>
@@ -553,7 +557,7 @@ export default function KnowledgeGraphPage() {
                             onClick={() => router.push(`/courses/${course.id}`)}
                           >
                             <div className="flex items-start justify-between">
-                              <h6 className="font-medium text-gray-900 text-sm leading-tight">{course.name}</h6>
+                              <h6 className="font-medium text-gray-900 text-sm leading-tight">{getLocalizedText(course.name, language)}</h6>
                               <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full ml-2 flex-shrink-0">
                                 {course._count?.topics || 0} topics
                               </span>

@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 // GET - fetch student dashboard data
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -12,6 +13,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const language = (searchParams.get('lang') || 'en') as 'en' | 'uk'
     const userId = session.user.id
 
     // Get status counts
@@ -120,14 +123,35 @@ export async function GET() {
       }
     })
 
+    // Localize the text fields
+    const localizedRecentChanges = recentChanges.map(change => ({
+      ...change,
+      topic: {
+        ...change.topic,
+        name: getLocalizedText(change.topic.name as any, language)
+      }
+    }))
+
+    const localizedGoalsWithProgress = goalsWithProgress.map(goal => ({
+      ...goal,
+      name: getLocalizedText(goal.name as any, language),
+      motto: goal.motto ? getLocalizedText(goal.motto as any, language) : null
+    }))
+
+    const localizedCoursesWithProgress = coursesWithProgress.map(course => ({
+      ...course,
+      name: getLocalizedText(course.name as any, language),
+      description: course.description ? getLocalizedText(course.description as any, language) : null
+    }))
+
     return NextResponse.json({
       statusCounts: statusCounts.reduce((acc, curr) => {
         acc[curr.status] = curr._count.status
         return acc
       }, {} as Record<string, number>),
-      recentChanges,
-      goals: goalsWithProgress,
-      courses: coursesWithProgress
+      recentChanges: localizedRecentChanges,
+      goals: localizedGoalsWithProgress,
+      courses: localizedCoursesWithProgress
     })
   } catch (error) {
     console.error('Error fetching student dashboard:', error)

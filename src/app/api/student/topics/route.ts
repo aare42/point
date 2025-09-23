@@ -3,15 +3,19 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 // GET - fetch all topics with student's status
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const url = new URL(request.url)
+    const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
 
 
     const topics = await prisma.topic.findMany({
@@ -44,7 +48,17 @@ export async function GET() {
 
     const topicsWithStatus = topics.map(topic => ({
       ...topic,
-      status: topic.studentTopics[0]?.status || 'NOT_LEARNED'
+      name: getLocalizedText(topic.name as any, language),
+      description: getLocalizedText(topic.description as any, language),
+      keypoints: getLocalizedText(topic.keypoints as any, language),
+      status: topic.studentTopics[0]?.status || 'NOT_LEARNED',
+      prerequisites: topic.prerequisites.map(p => ({
+        ...p,
+        prerequisite: {
+          ...p.prerequisite,
+          name: getLocalizedText(p.prerequisite.name as any, language)
+        }
+      }))
     }))
 
     return NextResponse.json(topicsWithStatus)

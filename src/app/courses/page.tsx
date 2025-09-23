@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Topic {
   id: string
@@ -47,6 +48,7 @@ const statusColors = {
 export default function CoursesPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -64,7 +66,7 @@ export default function CoursesPage() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('/api/courses')
+      const response = await fetch(`/api/courses?lang=${language}`)
       if (response.ok) {
         const coursesData = await response.json()
         setCourses(coursesData)
@@ -118,7 +120,7 @@ export default function CoursesPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">Loading courses...</p>
+            <p className="text-gray-600 font-medium">{t('courses.loading')}</p>
           </div>
         </div>
       </div>
@@ -133,10 +135,10 @@ export default function CoursesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                📚 Browse Courses
+                📚 {t('courses.browse_title')}
               </h1>
               <p className="text-gray-600">
-                Discover courses created by educators and start your learning journey
+                {t('courses.discover_courses')}
               </p>
             </div>
             
@@ -146,13 +148,13 @@ export default function CoursesPage() {
                 href="/student"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
-                Student Dashboard
+                {t('courses.student_dashboard')}
               </Link>
               <Link
                 href="/knowledge-graph"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
-                Knowledge Graph
+                {t('courses.knowledge_graph')}
               </Link>
             </div>
           </div>
@@ -166,7 +168,7 @@ export default function CoursesPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search courses, instructors, or descriptions..."
+                  placeholder={t('courses.search_placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -182,7 +184,7 @@ export default function CoursesPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Filter by topic name..."
+                  placeholder={t('courses.filter_topic_placeholder')}
                   value={topicSearch}
                   onChange={(e) => setTopicSearch(e.target.value)}
                   className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -198,8 +200,11 @@ export default function CoursesPage() {
         {/* Results Info */}
         <div className="mb-6 flex items-center justify-between">
           <div className="text-gray-600">
-            Found <strong>{filteredCourses.length}</strong> course{filteredCourses.length !== 1 ? 's' : ''}
-            {searchQuery && ` matching "${searchQuery}"`}
+            {t('courses.found_results', { 
+              count: filteredCourses.length.toString(), 
+              plural: filteredCourses.length !== 1 ? 's' : '' 
+            })}
+            {searchQuery && ` ${t('courses.matching_search', { query: searchQuery })}`}
           </div>
           {(searchQuery || topicSearch) && (
             <button
@@ -209,7 +214,7 @@ export default function CoursesPage() {
               }}
               className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
             >
-              Clear filters
+              {t('courses.clear_filters')}
             </button>
           )}
         </div>
@@ -268,7 +273,7 @@ export default function CoursesPage() {
                         })}
                         {course.topics.length > 3 && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            +{course.topics.length - 3} more
+                            {t('courses.more_topics', { count: (course.topics.length - 3).toString() })}
                           </span>
                         )}
                       </div>
@@ -282,13 +287,13 @@ export default function CoursesPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
-                        <span>{course._count.topics} topics</span>
+                        <span>{t('courses.topics_count_stat', { count: course._count.topics.toString() })}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                         </svg>
-                        <span>{course._count.enrollments} students</span>
+                        <span>{t('courses.students_count_stat', { count: course._count.enrollments.toString() })}</span>
                       </span>
                     </div>
                     <div className="text-xs text-gray-400">
@@ -305,12 +310,12 @@ export default function CoursesPage() {
               {searchQuery || topicSearch ? '🔍' : '📚'}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              {searchQuery || topicSearch ? 'No courses found' : 'No courses available yet'}
+              {searchQuery || topicSearch ? t('courses.no_courses_found') : t('courses.no_courses_available')}
             </h3>
             <p className="text-gray-600 mb-6">
               {searchQuery || topicSearch 
-                ? 'Try adjusting your search or filters to find more courses.'
-                : 'Educators haven\'t created any courses yet. Check back later!'}
+                ? t('courses.adjust_search')
+                : t('courses.educators_no_courses')}
             </p>
             {(searchQuery || topicSearch) && (
               <button
@@ -320,7 +325,7 @@ export default function CoursesPage() {
                 }}
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                Clear Filters
+                {t('courses.clear_filters_button')}
               </button>
             )}
           </div>
@@ -330,22 +335,22 @@ export default function CoursesPage() {
         {courses.length > 0 && (
           <div className="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 text-center border border-indigo-100">
             <div className="text-4xl mb-4">🎓</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Ready to Start Learning?</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('courses.ready_to_learn')}</h3>
             <p className="text-gray-600 mb-6">
-              Explore the knowledge graph to see how topics connect and plan your learning path.
+              {t('courses.explore_knowledge_graph_cta')}
             </p>
             <div className="flex items-center justify-center space-x-4">
               <Link
                 href="/knowledge-graph"
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                Explore Knowledge Graph
+                {t('courses.explore_knowledge_graph')}
               </Link>
               <Link
                 href="/student"
                 className="px-6 py-3 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
               >
-                Student Dashboard
+                {t('courses.student_dashboard')}
               </Link>
             </div>
           </div>
