@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 // POST - create new vacancy
 export async function POST(req: NextRequest) {
@@ -52,6 +53,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const url = new URL(req.url)
+    const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
+
     const vacancies = await prisma.vacancy.findMany({
       where: {
         authorId: session.user.id
@@ -84,7 +88,22 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json(vacancies)
+    // Localize the text fields
+    const localizedVacancies = vacancies.map(vacancy => ({
+      ...vacancy,
+      name: getLocalizedText(vacancy.name as any, language),
+      localizedName: getLocalizedText(vacancy.name as any, language),
+      topics: vacancy.topics.map(vt => ({
+        ...vt,
+        topic: {
+          ...vt.topic,
+          name: getLocalizedText(vt.topic.name as any, language),
+          localizedName: getLocalizedText(vt.topic.name as any, language)
+        }
+      }))
+    }))
+
+    return NextResponse.json(localizedVacancies)
   } catch (error) {
     console.error('Error fetching employer vacancies:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

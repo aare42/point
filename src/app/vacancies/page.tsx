@@ -12,6 +12,7 @@ interface Topic {
   name: string
   slug: string
   type: TopicType
+  localizedName: string
 }
 
 interface VacancyTopic {
@@ -46,7 +47,7 @@ const statusColors = {
 export default function VacanciesPage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -68,11 +69,11 @@ export default function VacanciesPage() {
     if (session?.user) {
       fetchUserTopics()
     }
-  }, [session])
+  }, [session, language])
 
   const fetchVacancies = async () => {
     try {
-      const response = await fetch('/api/vacancies')
+      const response = await fetch(`/api/vacancies?lang=${language}`)
       if (response.ok) {
         const vacanciesData = await response.json()
         setVacancies(vacanciesData)
@@ -281,14 +282,14 @@ export default function VacanciesPage() {
                             <span
                               key={vacancyTopic.topic.id}
                               className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}
-                              title={`${vacancyTopic.topic.name} - Status: ${status.replace('_', ' ').toLowerCase()}`}
+                              title={`${vacancyTopic.topic.localizedName || vacancyTopic.topic.name} - Status: ${status.replace('_', ' ').toLowerCase()}`}
                             >
                               <span>
                                 {vacancyTopic.topic.type === 'THEORY' && '📚'}
                                 {vacancyTopic.topic.type === 'PRACTICE' && '⚙️'}
                                 {vacancyTopic.topic.type === 'PROJECT' && '🚀'}
                               </span>
-                              <span>{vacancyTopic.topic.name}</span>
+                              <span>{vacancyTopic.topic.localizedName || vacancyTopic.topic.name}</span>
                             </span>
                           )
                         })}

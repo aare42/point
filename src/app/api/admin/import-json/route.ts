@@ -368,6 +368,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Import Course Topics (junction table for course-topic relationships)
+    if (data.data.courseTopic && Array.isArray(data.data.courseTopic)) {
+      try {
+        for (const courseTopic of data.data.courseTopic) {
+          const mappedCourseId = courseMapping[courseTopic.courseId]
+          const mappedTopicId = topicMapping[courseTopic.topicId]
+          
+          // Skip if course or topic doesn't exist in our mappings
+          if (!mappedCourseId || !mappedTopicId) continue
+          
+          const existing = await prisma.courseTopic.findUnique({
+            where: {
+              courseId_topicId: {
+                courseId: mappedCourseId,
+                topicId: mappedTopicId
+              }
+            }
+          })
+          
+          if (!existing) {
+            const transformedCourseTopic = {
+              courseId: mappedCourseId,
+              topicId: mappedTopicId
+            }
+            await prisma.courseTopic.create({ data: transformedCourseTopic })
+            importedCount++
+          }
+        }
+        results.push(`${data.data.courseTopic.length} course topics processed`)
+      } catch (error) {
+        results.push(`Course topics import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+    }
+
     // Import Course Enrollments
     if (data.data.courseEnrollment && Array.isArray(data.data.courseEnrollment)) {
       try {

@@ -4,13 +4,16 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: string | any
+  localizedName?: string
   slug: string
   type: TopicType
-  description?: string
+  description?: string | any
 }
 
 interface CourseTopic {
@@ -33,8 +36,9 @@ interface Enrollment {
 
 interface Course {
   id: string
-  name: string
-  description?: string
+  name: string | any
+  localizedName?: string
+  description?: string | any
   createdAt: string
   educator: Educator
   topics: CourseTopic[]
@@ -47,6 +51,7 @@ interface Course {
 
 export default function PublicCoursePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { language } = useLanguage()
   const [courseId, setCourseId] = useState<string>('')
   const [course, setCourse] = useState<Course | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,7 +73,7 @@ export default function PublicCoursePage({ params }: { params: Promise<{ id: str
 
   const fetchCourse = async (id: string) => {
     try {
-      const response = await fetch(`/api/courses/${id}`)
+      const response = await fetch(`/api/courses/${id}?lang=${language}`)
       if (response.ok) {
         const courseData = await response.json()
         setCourse(courseData)
@@ -184,7 +189,7 @@ export default function PublicCoursePage({ params }: { params: Promise<{ id: str
             </Link>
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900">{course.name}</h1>
+                <h1 className="text-3xl font-bold text-gray-900">{course.localizedName || getLocalizedText(course.name, language)}</h1>
                 {isEnrolled && (
                   <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
                     Enrolled
@@ -217,7 +222,7 @@ export default function PublicCoursePage({ params }: { params: Promise<{ id: str
             <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">About This Course</h2>
               {course.description ? (
-                <p className="text-gray-700 leading-relaxed">{course.description}</p>
+                <p className="text-gray-700 leading-relaxed">{getLocalizedText(course.description, language)}</p>
               ) : (
                 <p className="text-gray-500 italic">No description available.</p>
               )}
@@ -243,10 +248,10 @@ export default function PublicCoursePage({ params }: { params: Promise<{ id: str
                           {courseTopic.topic.type === 'PROJECT' && '🚀'}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{courseTopic.topic.name}</h3>
+                          <h3 className="font-medium text-gray-900">{courseTopic.topic.localizedName || getLocalizedText(courseTopic.topic.name, language)}</h3>
                           <p className="text-sm text-gray-500 capitalize">{courseTopic.topic.type.toLowerCase()}</p>
                           {courseTopic.topic.description && (
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{courseTopic.topic.description}</p>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{getLocalizedText(courseTopic.topic.description, language)}</p>
                           )}
                         </div>
                       </div>

@@ -3,21 +3,24 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Goal {
   id: string
-  name: string
-  description?: string
-  motto?: string
+  name: string | any
+  description?: string | any
+  motto?: string | any
   deadline?: string
   createdAt: string
   topics: {
     topic: {
       id: string
-      name: string
+      name: string | any
+      localizedName?: string
       slug: string
       type: string
-      description?: string
+      description?: string | any
       studentTopics?: {
         status: string
       }[]
@@ -30,6 +33,7 @@ interface Goal {
 
 export default function GoalsPage() {
   const router = useRouter()
+  const { language } = useLanguage()
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -47,11 +51,11 @@ export default function GoalsPage() {
 
   useEffect(() => {
     fetchGoals()
-  }, [])
+  }, [language])
 
   const fetchGoals = async () => {
     try {
-      const response = await fetch('/api/goals')
+      const response = await fetch(`/api/goals?lang=${language}`)
       if (response.ok) {
         const data = await response.json()
         setGoals(data)
@@ -243,12 +247,12 @@ export default function GoalsPage() {
                   {/* Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">{goal.name}</h3>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{getLocalizedText(goal.name, language)}</h3>
                       {goal.description && (
-                        <p className="text-gray-600 text-sm mb-3">{goal.description}</p>
+                        <p className="text-gray-600 text-sm mb-3">{getLocalizedText(goal.description, language)}</p>
                       )}
                       {goal.motto && (
-                        <p className="text-indigo-600 text-sm italic mb-3">"{goal.motto}"</p>
+                        <p className="text-indigo-600 text-sm italic mb-3">"{getLocalizedText(goal.motto, language)}"</p>
                       )}
                     </div>
                     
@@ -331,7 +335,7 @@ export default function GoalsPage() {
                                     href={`/knowledge-graph?selected=${topic.id}`}
                                     className="font-medium text-gray-900 text-sm hover:text-indigo-600 cursor-pointer transition-colors"
                                   >
-                                    {topic.name}
+                                    {topic.localizedName || getLocalizedText(topic.name, language)}
                                   </Link>
                                   <div className="text-xs text-gray-500 capitalize">
                                     {topic.type?.toLowerCase() || 'unknown'} Topic

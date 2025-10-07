@@ -10,6 +10,7 @@ interface Topic {
   name: string
   slug: string
   type: string
+  localizedName: string
 }
 
 export default function CreateVacancyPage() {
@@ -36,7 +37,7 @@ export default function CreateVacancyPage() {
     } else {
       setFilteredTopics(
         topics.filter(topic => 
-          topic.name.toLowerCase().includes(searchTerm.toLowerCase())
+          topic.localizedName.toLowerCase().includes(searchTerm.toLowerCase())
         )
       )
     }
@@ -44,7 +45,7 @@ export default function CreateVacancyPage() {
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('/api/topics')
+      const response = await fetch('/api/topics?lang=uk')
       if (response.ok) {
         const data = await response.json()
         setTopics(data)
@@ -204,7 +205,7 @@ export default function CreateVacancyPage() {
                     >
                       <div className="flex items-center space-x-2">
                         <span className="text-lg">{getTopicIcon(topic.type)}</span>
-                        <span className="text-sm font-medium">{topic.name}</span>
+                        <span className="text-sm font-medium">{topic.localizedName}</span>
                       </div>
                     </div>
                   ))}

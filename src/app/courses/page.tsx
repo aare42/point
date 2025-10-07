@@ -48,7 +48,7 @@ const statusColors = {
 export default function CoursesPage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)

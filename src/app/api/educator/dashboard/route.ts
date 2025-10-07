@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 // GET - fetch educator dashboard data
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -12,6 +13,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const url = new URL(request.url)
+    const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
     const userId = session.user.id
 
     // Get educator's courses with topic and enrollment counts
@@ -65,9 +68,26 @@ export async function GET() {
     const totalStudents = courses.reduce((sum, course) => sum + course._count.enrollments, 0)
     const totalTopics = courses.reduce((sum, course) => sum + course._count.topics, 0)
 
+    // Localize the text fields
+    const localizedCourses = courses.map(course => ({
+      ...course,
+      name: getLocalizedText(course.name as any, language),
+      localizedName: getLocalizedText(course.name as any, language),
+      description: course.description ? getLocalizedText(course.description as any, language) : null
+    }))
+
+    const localizedEnrollments = recentEnrollments.map(enrollment => ({
+      ...enrollment,
+      course: {
+        ...enrollment.course,
+        name: getLocalizedText(enrollment.course.name as any, language),
+        localizedName: getLocalizedText(enrollment.course.name as any, language)
+      }
+    }))
+
     return NextResponse.json({
-      courses,
-      recentEnrollments,
+      courses: localizedCourses,
+      recentEnrollments: localizedEnrollments,
       stats: {
         totalCourses,
         totalStudents,

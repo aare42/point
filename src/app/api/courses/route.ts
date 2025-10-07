@@ -16,13 +16,14 @@ const CreateCourseSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const educatorId = searchParams.get('educatorId')
     const language = (searchParams.get('lang') || 'en') as 'en' | 'uk'
+
+    // For educator-specific queries, require authentication
+    if (educatorId && !session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const courses = await prisma.course.findMany({
       where: educatorId ? { educatorId } : { isPublic: true },

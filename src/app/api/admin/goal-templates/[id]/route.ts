@@ -5,47 +5,44 @@ import { prisma } from '@/lib/prisma'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('PATCH /api/admin/topics/[id] called')
-    
     // Check authentication and admin role
     const session = await getServerSession(authOptions)
-    console.log('Session user:', session?.user?.id, 'Role:', session?.user?.role)
-    
     if (!session?.user || !['ADMIN', 'EDITOR'].includes(session.user.role || '')) {
-      console.log('Authorization failed')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const topicId = params.id
+    const { id } = await params
     const updates = await request.json()
-    console.log('Topic PATCH request:', { topicId, updates })
 
-    // Update the topic
-    const updatedTopic = await prisma.topic.update({
-      where: { id: topicId },
+    // Update the goal template
+    const updatedGoalTemplate = await prisma.goalTemplate.update({
+      where: { id },
       data: updates,
       include: {
         author: {
           select: { id: true, name: true, email: true }
         },
-        prerequisites: {
+        topics: {
           include: {
-            prerequisite: {
+            topic: {
               select: { id: true, name: true, slug: true, type: true }
             }
           }
+        },
+        _count: {
+          select: { topics: true, goals: true }
         }
       }
     })
 
-    return NextResponse.json(updatedTopic)
+    return NextResponse.json(updatedGoalTemplate)
   } catch (error) {
-    console.error('Error updating topic:', error)
+    console.error('Error updating goal template:', error)
     return NextResponse.json(
-      { error: 'Failed to update topic' },
+      { error: 'Failed to update goal template' },
       { status: 500 }
     )
   }

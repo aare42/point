@@ -3,14 +3,17 @@
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: string | any
+  localizedName?: string
   slug: string
   type: string
-  keypoints: string
-  description?: string
+  keypoints: string | any
+  description?: string | any
   status: string
   updatedAt: string
   author: {
@@ -19,7 +22,8 @@ interface Topic {
   prerequisites: Array<{
     prerequisite: {
       id: string
-      name: string
+      name: string | any
+      localizedName?: string
       slug: string
     }
   }>
@@ -45,6 +49,7 @@ const allowedStatuses = ['NOT_LEARNED', 'WANT_TO_LEARN', 'LEARNING', 'LEARNED']
 
 export default function StudentTopics() {
   const { data: session } = useSession()
+  const { language } = useLanguage()
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
@@ -52,11 +57,11 @@ export default function StudentTopics() {
     if (session?.user) {
       fetchTopics()
     }
-  }, [session])
+  }, [session, language])
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('/api/student/topics')
+      const response = await fetch(`/api/student/topics?lang=${language}`)
       if (response.ok) {
         const data = await response.json()
         // Filter to only show topics the user has interacted with (not NOT_LEARNED)
@@ -209,7 +214,7 @@ export default function StudentTopics() {
                       {columnTopics.map((topic) => (
                         <div key={topic.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all">
                           <div className="mb-3">
-                            <h4 className="font-semibold text-gray-900 text-sm mb-1">{topic.name}</h4>
+                            <h4 className="font-semibold text-gray-900 text-sm mb-1">{topic.localizedName || getLocalizedText(topic.name, language)}</h4>
                             <p className="text-xs text-gray-500">by {topic.author.name}</p>
                             <div className="flex items-center justify-between mt-2">
                               <span className={`inline-block px-2 py-1 text-xs rounded-full ${
@@ -226,7 +231,7 @@ export default function StudentTopics() {
                           </div>
 
                           {topic.description && (
-                            <p className="text-xs text-gray-600 mb-3 line-clamp-2">{topic.description}</p>
+                            <p className="text-xs text-gray-600 mb-3 line-clamp-2">{getLocalizedText(topic.description, language)}</p>
                           )}
 
                           {/* Prerequisites */}
@@ -236,7 +241,7 @@ export default function StudentTopics() {
                               <div className="flex flex-wrap gap-1">
                                 {topic.prerequisites.slice(0, 2).map((prereq) => (
                                   <span key={prereq.prerequisite.id} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                    {prereq.prerequisite.name}
+                                    {prereq.prerequisite.localizedName || getLocalizedText(prereq.prerequisite.name, language)}
                                   </span>
                                 ))}
                                 {topic.prerequisites.length > 2 && (

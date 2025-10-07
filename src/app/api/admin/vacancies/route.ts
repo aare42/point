@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       // Create vacancy with multilingual name
       const newVacancy = await tx.vacancy.create({
         data: {
-          name: createMultilingualText(name),
+          name: JSON.stringify(createMultilingualText(name)),
           authorId: session.user.id
         }
       })

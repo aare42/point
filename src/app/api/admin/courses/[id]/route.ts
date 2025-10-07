@@ -11,7 +11,9 @@ const updateCourseSchema = z.object({
 })
 
 const patchCourseSchema = z.object({
-  isPublic: z.boolean()
+  isPublic: z.boolean().optional(),
+  name: z.any().optional(),
+  description: z.any().optional()
 })
 
 // GET - fetch course details for admin
@@ -32,8 +34,8 @@ export async function GET(
       select: { role: true }
     })
 
-    if (user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    if (!['ADMIN', 'EDITOR'].includes(user?.role || '')) {
+      return NextResponse.json({ error: 'Admin or Editor access required' }, { status: 403 })
     }
 
     const { id } = await params
@@ -97,8 +99,8 @@ export async function PUT(
       select: { role: true }
     })
 
-    if (user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    if (!['ADMIN', 'EDITOR'].includes(user?.role || '')) {
+      return NextResponse.json({ error: 'Admin or Editor access required' }, { status: 403 })
     }
 
     const { id } = await params
@@ -165,8 +167,8 @@ export async function DELETE(
       select: { role: true }
     })
 
-    if (user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    if (!['ADMIN', 'EDITOR'].includes(user?.role || '')) {
+      return NextResponse.json({ error: 'Admin or Editor access required' }, { status: 403 })
     }
 
     const { id } = await params
@@ -213,18 +215,38 @@ export async function PATCH(
       select: { role: true }
     })
 
-    if (user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    if (!['ADMIN', 'EDITOR'].includes(user?.role || '')) {
+      return NextResponse.json({ error: 'Admin or Editor access required' }, { status: 403 })
     }
 
     const { id } = await params
     const body = await req.json()
-    const { isPublic } = patchCourseSchema.parse(body)
+    const validatedData = patchCourseSchema.parse(body)
+
+    // Only include fields that are actually provided
+    const updateData: any = {}
+    if (validatedData.isPublic !== undefined) updateData.isPublic = validatedData.isPublic
+    if (validatedData.name !== undefined) updateData.name = validatedData.name
+    if (validatedData.description !== undefined) updateData.description = validatedData.description
 
     const updatedCourse = await prisma.course.update({
       where: { id },
-      data: { isPublic },
-      select: { id: true, isPublic: true }
+      data: updateData,
+      include: {
+        educator: {
+          select: { id: true, name: true, email: true }
+        },
+        topics: {
+          include: {
+            topic: {
+              select: { id: true, name: true, type: true }
+            }
+          }
+        },
+        _count: {
+          select: { topics: true, enrollments: true }
+        }
+      }
     })
 
     return NextResponse.json(updatedCourse)

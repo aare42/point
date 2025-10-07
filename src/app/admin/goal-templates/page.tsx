@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface GoalTemplate {
   id: string
-  name: string
-  description?: string
-  motto?: string
+  name: string | any
+  localizedName?: string
+  description?: string | any
+  motto?: string | any
   createdAt: string
   updatedAt: string
   author: {
@@ -19,7 +22,8 @@ interface GoalTemplate {
   topics: {
     topic: {
       id: string
-      name: string
+      name: string | any
+      localizedName?: string
       type: 'THEORY' | 'PRACTICE' | 'PROJECT'
     }
   }[]
@@ -31,12 +35,14 @@ interface GoalTemplate {
 
 interface Topic {
   id: string
-  name: string
+  name: string | any
+  localizedName?: string
   type: 'THEORY' | 'PRACTICE' | 'PROJECT'
-  description?: string
+  description?: string | any
 }
 
 export default function AdminGoalTemplatesPage() {
+  const { language } = useLanguage()
   const [goalTemplates, setGoalTemplates] = useState<GoalTemplate[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,11 +60,11 @@ export default function AdminGoalTemplatesPage() {
   useEffect(() => {
     fetchGoalTemplates()
     fetchTopics()
-  }, [])
+  }, [language])
 
   const fetchGoalTemplates = async () => {
     try {
-      const response = await fetch('/api/admin/goal-templates')
+      const response = await fetch(`/api/admin/goal-templates?lang=${language}`)
       if (response.ok) {
         const data = await response.json()
         setGoalTemplates(data)
@@ -72,7 +78,7 @@ export default function AdminGoalTemplatesPage() {
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('/api/topics')
+      const response = await fetch(`/api/topics?lang=${language}`)
       if (response.ok) {
         const data = await response.json()
         setTopics(data)
@@ -149,12 +155,15 @@ export default function AdminGoalTemplatesPage() {
     }
   }
 
-  const filteredGoalTemplates = goalTemplates.filter(template =>
-    template.name.toLowerCase().includes(search.toLowerCase()) ||
-    template.description?.toLowerCase().includes(search.toLowerCase()) ||
-    template.author.name?.toLowerCase().includes(search.toLowerCase()) ||
-    template.author.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredGoalTemplates = goalTemplates.filter(template => {
+    const localizedName = template.localizedName || getLocalizedText(template.name, language)
+    const localizedDescription = template.description ? getLocalizedText(template.description, language) : ''
+    
+    return localizedName.toLowerCase().includes(search.toLowerCase()) ||
+           localizedDescription.toLowerCase().includes(search.toLowerCase()) ||
+           template.author.name?.toLowerCase().includes(search.toLowerCase()) ||
+           template.author.email.toLowerCase().includes(search.toLowerCase())
+  })
 
   if (loading) {
     return (
@@ -265,12 +274,12 @@ export default function AdminGoalTemplatesPage() {
                         <div className="flex items-start space-x-2">
                           <span className="text-lg">{getTopicIcon(topic.type)}</span>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-gray-900 text-sm truncate">{topic.name}</h4>
+                            <h4 className="font-medium text-gray-900 text-sm truncate">{topic.localizedName || getLocalizedText(topic.name, language)}</h4>
                             <p className="text-xs text-gray-500 capitalize mt-1">
                               {topic.type?.toLowerCase() || 'unknown'} Topic
                             </p>
                             {topic.description && (
-                              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{topic.description}</p>
+                              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{getLocalizedText(topic.description, language)}</p>
                             )}
                           </div>
                           {formData.topicIds.includes(topic.id) && (
@@ -340,7 +349,7 @@ export default function AdminGoalTemplatesPage() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {template.name}
+                          {template.localizedName || getLocalizedText(template.name, language)}
                         </h3>
                         <span className="px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 rounded-full">
                           {template._count.topics} topics
@@ -351,11 +360,11 @@ export default function AdminGoalTemplatesPage() {
                       </div>
                       
                       {template.description && (
-                        <p className="text-gray-600 mb-2">{template.description}</p>
+                        <p className="text-gray-600 mb-2">{getLocalizedText(template.description, language)}</p>
                       )}
                       
                       {template.motto && (
-                        <p className="text-sm text-indigo-600 italic mb-2">"{template.motto}"</p>
+                        <p className="text-sm text-indigo-600 italic mb-2">"{getLocalizedText(template.motto, language)}"</p>
                       )}
                       
                       <div className="flex items-center text-sm text-gray-500 space-x-4">
@@ -391,7 +400,7 @@ export default function AdminGoalTemplatesPage() {
                             {topicRel.topic.type === 'THEORY' && '📚'}
                             {topicRel.topic.type === 'PRACTICE' && '⚙️'}
                             {topicRel.topic.type === 'PROJECT' && '🚀'}
-                            {topicRel.topic.name}
+                            {topicRel.topic.localizedName || getLocalizedText(topicRel.topic.name, language)}
                           </span>
                         ))}
                       </div>

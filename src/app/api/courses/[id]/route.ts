@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 const UpdateCourseSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200, 'Name too long').optional(),
@@ -16,6 +17,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const url = new URL(req.url)
+    const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
     const course = await prisma.course.findUnique({
       where: { id },
       include: {
@@ -49,7 +52,24 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
-    return NextResponse.json(course)
+    // Localize the text fields
+    const localizedCourse = {
+      ...course,
+      name: getLocalizedText(course.name as any, language),
+      localizedName: getLocalizedText(course.name as any, language),
+      description: course.description ? getLocalizedText(course.description as any, language) : null,
+      topics: course.topics.map(ct => ({
+        ...ct,
+        topic: {
+          ...ct.topic,
+          name: getLocalizedText(ct.topic.name as any, language),
+          localizedName: getLocalizedText(ct.topic.name as any, language),
+          description: ct.topic.description ? getLocalizedText(ct.topic.description as any, language) : null
+        }
+      }))
+    }
+
+    return NextResponse.json(localizedCourse)
   } catch (error) {
     console.error('Error fetching course:', error)
     return NextResponse.json(

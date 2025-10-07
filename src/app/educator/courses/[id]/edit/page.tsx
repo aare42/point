@@ -4,22 +4,24 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: any // Multilingual object
   slug: string
   type: TopicType
-  description?: string
+  description?: any // Multilingual object
 }
 
 interface CourseTopic {
   topic: {
     id: string
-    name: string
+    name: any // Multilingual object
     slug: string
     type: TopicType
-    description?: string
+    description?: any // Multilingual object
   }
 }
 
@@ -32,6 +34,7 @@ interface Course {
 
 export default function EditCoursePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { language } = useLanguage()
   const [courseId, setCourseId] = useState<string>('')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -156,9 +159,10 @@ export default function EditCoursePage({ params }: { params: Promise<{ id: strin
     )
   }
 
-  const filteredTopics = allTopics.filter(topic =>
-    topic.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredTopics = allTopics.filter(topic => {
+    const topicName = getLocalizedText(topic.name, language)
+    return topicName.toLowerCase().includes(searchQuery.toLowerCase())
+  })
 
   if (!mounted || pageLoading) {
     return (
@@ -298,10 +302,10 @@ export default function EditCoursePage({ params }: { params: Promise<{ id: strin
                         {topic.type === 'PROJECT' && '🚀'}
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{topic.name}</h3>
+                        <h3 className="font-medium text-gray-900">{getLocalizedText(topic.name, language)}</h3>
                         <p className="text-sm text-gray-500 capitalize">{topic.type.toLowerCase()}</p>
                         {topic.description && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{topic.description}</p>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{getLocalizedText(topic.description, language)}</p>
                         )}
                       </div>
                       {selectedTopicIds.includes(topic.id) && (

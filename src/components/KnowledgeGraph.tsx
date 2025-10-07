@@ -50,10 +50,25 @@ export default function KnowledgeGraph({
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null)
   const [isClientMounted, setIsClientMounted] = useState(false)
   const [isLegendOpen, setIsLegendOpen] = useState(false)
+  // Persistent transform state that survives re-renders
+  const persistentTransform = useRef(d3.zoomIdentity)
 
   useEffect(() => {
     setIsClientMounted(true)
   }, [])
+
+  // Node colors based on selection, hover, and highlighting
+  const getNodeColor = (nodeData: GraphNode, isSelected: boolean, isHovered: boolean) => {
+    if (isSelected) return '#1F2937'  // Dark gray when selected
+    if (isHovered) return '#374151'   // Medium gray when hovered
+    
+    // Use highlighting to make non-highlighted nodes more transparent
+    if (nodeData.highlighted === false) {
+      return '#9CA3AF'  // Lighter gray for non-highlighted nodes
+    }
+    
+    return '#6B7280'  // Normal gray for highlighted or all nodes
+  }
 
   useEffect(() => {
     if (!isClientMounted || !svgRef.current || !data.nodes.length) return
@@ -71,10 +86,16 @@ export default function KnowledgeGraph({
     const zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
       .on('zoom', (event) => {
+        // Update both local and persistent transform state
+        persistentTransform.current = event.transform
         graphContainer.attr('transform', event.transform)
       })
 
     svgElement.call(zoomBehavior)
+    
+    // Restore previous transform state or use identity for first render
+    svgElement.call(zoomBehavior.transform, persistentTransform.current)
+    graphContainer.attr('transform', persistentTransform.current)
 
     // Direct grid-based layout following user instructions
     const gridBasedLayout = () => {
@@ -172,7 +193,7 @@ export default function KnowledgeGraph({
           
           // Calculate total width needed for this level
           const levelWidth = nodesInLevel.length * GRID_CELL_WIDTH
-          // Center the level horizontally in the available width
+          // Center the level within the available width
           const levelStartX = (width - levelWidth) / 2
           
           // For level 0, just space nodes evenly and centered
@@ -708,42 +729,11 @@ export default function KnowledgeGraph({
     
     const filteredLinks = validLinks
     
-    // Create enhanced force simulation with clustering
+    // Completely disable force simulation - nodes have fixed positions
     const forceSimulation = d3.forceSimulation<GraphNode>(data.nodes)
-      .force('link', d3.forceLink<GraphNode, GraphLink>(filteredLinks)
-        .id(nodeData => nodeData.id)
-        .distance(linkData => {
-          // Variable distance based on node types and levels
-          const sourceNode = typeof linkData.source === 'object' ? linkData.source : data.nodes.find(n => n.id === linkData.source)
-          const targetNode = typeof linkData.target === 'object' ? linkData.target : data.nodes.find(n => n.id === linkData.target)
-          
-          if (!sourceNode || !targetNode) return 100
-          
-          // Shorter links within same type, longer links between types
-          const sameType = sourceNode.type === targetNode.type
-          const levelDiff = Math.abs((nodeLevels[sourceNode.id] || 0) - (nodeLevels[targetNode.id] || 0))
-          
-          return sameType ? 60 + (levelDiff * 20) : 120 + (levelDiff * 30)
-        })
-        .strength(0.3))
-      .force('collision', d3.forceCollide().radius(70))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      // No clustering forces - nodes have fixed positions
-      .alpha(0.3)
-      .alphaDecay(0.02) // Slower cooling for better organization
+      .stop() // Stop the simulation immediately
 
-    // Node colors based on selection, hover, and highlighting
-    const getNodeColor = (nodeData: GraphNode, isSelected: boolean, isHovered: boolean) => {
-      if (isSelected) return '#1F2937'  // Dark gray when selected
-      if (isHovered) return '#374151'   // Medium gray when hovered
-      
-      // Use highlighting to make non-highlighted nodes more transparent
-      if (nodeData.highlighted === false) {
-        return '#9CA3AF'  // Lighter gray for non-highlighted nodes
-      }
-      
-      return '#6B7280'  // Normal gray for highlighted or all nodes
-    }
+    // getNodeColor is now defined outside the useEffect
     
     // Get node opacity based on highlighting
     const getNodeOpacity = (nodeData: GraphNode) => {
@@ -994,16 +984,19 @@ export default function KnowledgeGraph({
           .style('transform', 'scale(1.05)')
         
         // Highlight connected links
-        linkElements.style('stroke-opacity', linkData => 
-          (typeof linkData.source === 'object' && linkData.source.id === nodeData.id) ||
-          (typeof linkData.target === 'object' && linkData.target.id === nodeData.id) ? 1 : 0.2
-        ).style('stroke-width', linkData => 
-          (typeof linkData.source === 'object' && linkData.source.id === nodeData.id) ||
-          (typeof linkData.target === 'object' && linkData.target.id === nodeData.id) ? 4 : 2
-        ).attr('marker-end', linkData => 
-          (typeof linkData.source === 'object' && linkData.source.id === nodeData.id) ||
-          (typeof linkData.target === 'object' && linkData.target.id === nodeData.id) ? 'url(#arrow-highlighted)' : 'url(#arrow)'
-        )
+        linkElements.style('stroke-opacity', linkData => {
+          const sourceId = typeof linkData.source === 'string' ? linkData.source : linkData.source.id
+          const targetId = typeof linkData.target === 'string' ? linkData.target : linkData.target.id
+          return (sourceId === nodeData.id || targetId === nodeData.id) ? 1.0 : 0.2
+        }).style('stroke-width', linkData => {
+          const sourceId = typeof linkData.source === 'string' ? linkData.source : linkData.source.id
+          const targetId = typeof linkData.target === 'string' ? linkData.target : linkData.target.id
+          return (sourceId === nodeData.id || targetId === nodeData.id) ? 4 : 2
+        }).attr('marker-end', linkData => {
+          const sourceId = typeof linkData.source === 'string' ? linkData.source : linkData.source.id
+          const targetId = typeof linkData.target === 'string' ? linkData.target : linkData.target.id
+          return (sourceId === nodeData.id || targetId === nodeData.id) ? 'url(#arrow-highlighted)' : 'url(#arrow)'
+        })
       })
       .on('mouseout', function(event, nodeData) {
         setHoveredNode(null)
@@ -1013,14 +1006,25 @@ export default function KnowledgeGraph({
           .style('fill', getNodeColor(nodeData, nodeData.id === selectedNodeId, false))
           .style('transform', 'scale(1.0)')
         
-        // Reset links
-        linkElements.style('stroke-opacity', 0.6)
-          .style('stroke-width', 2)
+        // Reset links to default state
+        linkElements.style('stroke-opacity', 0.8)
+          .style('stroke-width', 2.5)
           .attr('marker-end', 'url(#arrow)')
       })
       .on('click', function(event, nodeData) {
+        // Prevent any default behavior
+        event.preventDefault()
+        event.stopPropagation()
+        
+        // Store current transform state before callbacks
+        const savedTransform = persistentTransform.current
+        
+        // Execute callbacks (this will cause re-render)
         onNodeClick?.(nodeData)
         onNodeSelect?.(nodeData)
+        
+        // The transform state is now preserved in persistentTransform.current
+        // and will be restored automatically on the next render
       })
 
     // Advanced Edge Detection & Auto-Fix Algorithm
@@ -1308,45 +1312,26 @@ export default function KnowledgeGraph({
       }
     }
 
-    // Update positions on tick with enhanced bundled paths
-    forceSimulation.on('tick', () => {
-      linkElements.attr('d', linkData => {
-        const sourceNode = typeof linkData.source === 'object' ? linkData.source : data.nodes.find(node => node.id === linkData.source)
-        const targetNode = typeof linkData.target === 'object' ? linkData.target : data.nodes.find(node => node.id === linkData.target)
-        
-        if (!sourceNode || !targetNode) {
-          console.warn('🚨 Missing node during tick:', { sourceNode: !!sourceNode, targetNode: !!targetNode })
-          return ''
-        }
-        
-        // Use the optimized path with top/bottom midpoints
-        return createOptimizedPath(sourceNode, targetNode)
-      })
-
-      nodeGroups.attr('transform', nodeData => `translate(${nodeData.x || 0}, ${nodeData.y || 0})`)
-      
-      // Update debug lines for missing edges during animation
-      graphContainer.selectAll('.missing-edge-debug').attr('d', function() {
-        const element = d3.select(this)
-        const sourceId = element.attr('data-source-id')
-        const targetId = element.attr('data-target-id')
-        
-        if (sourceId && targetId) {
-          const sourceNode = data.nodes.find(n => n.id === sourceId)
-          const targetNode = data.nodes.find(n => n.id === targetId)
-          
-          if (sourceNode && targetNode) {
-            const sourceX = sourceNode.x || sourceNode.fx || 0
-            const sourceY = sourceNode.y || sourceNode.fy || 0
-            const targetX = targetNode.x || targetNode.fx || 0
-            const targetY = targetNode.y || targetNode.fy || 0
-            
-            return `M ${sourceX},${sourceY} L ${targetX},${targetY}`
-          }
-        }
-        return ''
-      })
+    // Since simulation is stopped, set initial positions and render immediately
+    data.nodes.forEach(node => {
+      if (node.fx !== undefined) node.x = node.fx
+      if (node.fy !== undefined) node.y = node.fy
     })
+
+    // Set initial link paths
+    linkElements.attr('d', linkData => {
+      const sourceNode = typeof linkData.source === 'object' ? linkData.source : data.nodes.find(node => node.id === linkData.source)
+      const targetNode = typeof linkData.target === 'object' ? linkData.target : data.nodes.find(node => node.id === linkData.target)
+      
+      if (!sourceNode || !targetNode) {
+        return ''
+      }
+      
+      return createOptimizedPath(sourceNode, targetNode)
+    })
+
+    // Set initial node positions
+    nodeGroups.attr('transform', nodeData => `translate(${nodeData.x || 0}, ${nodeData.y || 0})`)
 
     // Run edge detection audit after initial positioning
     setTimeout(() => {
@@ -1357,7 +1342,24 @@ export default function KnowledgeGraph({
     return () => {
       forceSimulation.stop()
     }
-  }, [isClientMounted, data, width, height, selectedNodeId, onNodeClick, onNodeSelect])
+  }, [isClientMounted, data, width, height, onNodeClick, onNodeSelect])
+  
+  // Handle selectedNodeId changes separately without re-rendering the entire graph
+  useEffect(() => {
+    if (!isClientMounted || !svgRef.current) return
+    
+    const svgElement = d3.select(svgRef.current)
+    const nodeGroups = svgElement.selectAll('.node-group')
+    
+    // Update node colors based on selection without repositioning
+    nodeGroups.select('.node')
+      .style('fill', (nodeData: any) => {
+        const isSelected = nodeData.id === selectedNodeId
+        const isHovered = false
+        return getNodeColor(nodeData, isSelected, isHovered)
+      })
+      
+  }, [selectedNodeId, isClientMounted])
 
   if (!isClientMounted) {
     return (

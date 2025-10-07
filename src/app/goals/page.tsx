@@ -6,10 +6,12 @@ import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { TopicType } from '@prisma/client'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: string | any
+  localizedName?: string
   slug: string
   type: TopicType
 }
@@ -26,9 +28,10 @@ interface Author {
 
 interface GoalTemplate {
   id: string
-  name: string
-  description?: string
-  motto?: string
+  name: string | any
+  localizedName?: string
+  description?: string | any
+  motto?: string | any
   createdAt: string
   author: Author
   topics: GoalTopic[]
@@ -49,12 +52,13 @@ const statusColors = {
 export default function GoalTemplatesPage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [goals, setGoals] = useState<GoalTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [userTopics, setUserTopics] = useState<any[]>([])
+  const [currentRole, setCurrentRole] = useState<'STUDENT' | 'EDUCATOR' | 'EMPLOYER' | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -62,11 +66,38 @@ export default function GoalTemplatesPage() {
     if (session?.user) {
       fetchUserTopics()
     }
-  }, [session])
+    
+    // Load current role from localStorage
+    const savedRole = localStorage.getItem('selectedRole') as 'STUDENT' | 'EDUCATOR' | 'EMPLOYER'
+    if (savedRole && ['STUDENT', 'EDUCATOR', 'EMPLOYER'].includes(savedRole)) {
+      setCurrentRole(savedRole)
+    } else {
+      setCurrentRole('STUDENT') // default role
+    }
+  }, [session, language])
+
+  const handleGoalTemplateClick = (goal: GoalTemplate) => {
+    // Only allow students to create goals from templates
+    if (session?.user && currentRole === 'STUDENT') {
+      // Redirect to goal creation page with pre-filled template data
+      const topicIds = goal.topics.map(t => t.topic.id).join(',')
+      const params = new URLSearchParams({
+        template: goal.id,
+        name: goal.localizedName || getLocalizedText(goal.name, language),
+        description: goal.description ? getLocalizedText(goal.description, language) : '',
+        motto: goal.motto ? getLocalizedText(goal.motto, language) : '',
+        topicIds: topicIds
+      })
+      router.push(`/student/goals/new?${params.toString()}`)
+    }
+    // For non-students, do nothing (click is disabled)
+  }
+
+  const isStudentRole = session?.user && currentRole === 'STUDENT'
 
   const fetchGoals = async () => {
     try {
-      const response = await fetch('/api/goal-templates')
+      const response = await fetch(`/api/goal-templates?lang=${language}`)
       if (response.ok) {
         const goalsData = await response.json()
         setGoals(goalsData)
@@ -82,7 +113,7 @@ export default function GoalTemplatesPage() {
 
   const fetchUserTopics = async () => {
     try {
-      const response = await fetch('/api/student/topics')
+      const response = await fetch(`/api/student/topics?lang=${language}`)
       if (response.ok) {
         const topics = await response.json()
         setUserTopics(topics)
@@ -102,11 +133,15 @@ export default function GoalTemplatesPage() {
   }
 
   const filteredGoals = goals.filter(goal => {
+    const localizedName = goal.localizedName || getLocalizedText(goal.name, language)
+    const localizedDescription = goal.description ? getLocalizedText(goal.description, language) : ''
+    const localizedMotto = goal.motto ? getLocalizedText(goal.motto, language) : ''
+    
     const matchesSearch = searchQuery === '' || 
-      goal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      localizedName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       goal.author.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      goal.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      goal.motto?.toLowerCase().includes(searchQuery.toLowerCase())
+      localizedDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      localizedMotto.toLowerCase().includes(searchQuery.toLowerCase())
     
     return matchesSearch
   })
@@ -192,21 +227,48 @@ export default function GoalTemplatesPage() {
           )}
         </div>
 
+        {/* Role-based message */}
+        {!isStudentRole && session?.user && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-sm text-amber-700">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <span>Switch to Student role to create goals from these templates. Currently viewing as {currentRole?.toLowerCase()}.</span>
+            </div>
+          </div>
+        )}
+
+        {!session?.user && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-sm text-blue-700">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <span>Sign in as a student to create goals from these templates.</span>
+            </div>
+          </div>
+        )}
+
         {/* Goals Grid */}
         {filteredGoals.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGoals.map((goal) => (
               <div
                 key={goal.id}
-                className="bg-white rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl hover:border-indigo-300 transition-all cursor-pointer group"
-                onClick={() => router.push(`/goals/${goal.id}`)}
+                className={`bg-white rounded-2xl shadow-xl border border-gray-200 transition-all group ${
+                  isStudentRole 
+                    ? 'hover:shadow-2xl hover:border-indigo-300 cursor-pointer' 
+                    : 'opacity-60 cursor-not-allowed'
+                }`}
+                onClick={() => isStudentRole && handleGoalTemplateClick(goal)}
               >
                 <div className="p-6">
                   {/* Goal Header */}
                   <div className="mb-4">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors flex-1">
-                        {goal.name}
+                        {goal.localizedName || getLocalizedText(goal.name, language)}
                       </h3>
                     </div>
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -220,7 +282,7 @@ export default function GoalTemplatesPage() {
                   {/* Description */}
                   {goal.description && (
                     <p className="text-gray-700 text-sm mb-3 line-clamp-2">
-                      {goal.description}
+                      {getLocalizedText(goal.description, language)}
                     </p>
                   )}
 
@@ -228,7 +290,7 @@ export default function GoalTemplatesPage() {
                   {goal.motto && (
                     <div className="mb-4 p-3 bg-indigo-50 rounded-lg border-l-4 border-indigo-400">
                       <p className="text-sm font-medium text-indigo-800 italic">
-                        "{goal.motto}"
+                        "{getLocalizedText(goal.motto, language)}"
                       </p>
                     </div>
                   )}
@@ -245,14 +307,14 @@ export default function GoalTemplatesPage() {
                             <span
                               key={goalTopic.topic.id}
                               className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}
-                              title={session?.user ? `${goalTopic.topic.name} - Status: ${status.replace('_', ' ').toLowerCase()}` : goalTopic.topic.name}
+                              title={session?.user ? `${goalTopic.topic.localizedName || getLocalizedText(goalTopic.topic.name, language)} - Status: ${status.replace('_', ' ').toLowerCase()}` : goalTopic.topic.localizedName || getLocalizedText(goalTopic.topic.name, language)}
                             >
                               <span>
                                 {goalTopic.topic.type === 'THEORY' && '📚'}
                                 {goalTopic.topic.type === 'PRACTICE' && '⚙️'}
                                 {goalTopic.topic.type === 'PROJECT' && '🚀'}
                               </span>
-                              <span>{goalTopic.topic.name}</span>
+                              <span>{goalTopic.topic.localizedName || getLocalizedText(goalTopic.topic.name, language)}</span>
                             </span>
                           )
                         })}

@@ -5,10 +5,12 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: string | any
+  localizedName?: string
   slug: string
   type: TopicType
 }
@@ -19,7 +21,8 @@ interface VacancyTopic {
 
 interface Vacancy {
   id: string
-  name: string
+  name: string | any
+  localizedName?: string
   createdAt: string
   topics: VacancyTopic[]
   _count: {
@@ -29,9 +32,10 @@ interface Vacancy {
 
 interface Goal {
   id: string
-  name: string
-  description?: string
-  motto?: string
+  name: string | any
+  localizedName?: string
+  description?: string | any
+  motto?: string | any
   deadline?: string
   createdAt: string
   user: {
@@ -49,7 +53,7 @@ interface Goal {
 
 export default function EmployerDashboard() {
   const { data: session } = useSession()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [candidateGoals, setCandidateGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,13 +64,13 @@ export default function EmployerDashboard() {
     if (session?.user) {
       fetchData()
     }
-  }, [session])
+  }, [session, language])
 
   const fetchData = async () => {
     try {
       const [vacanciesResponse, goalsResponse] = await Promise.all([
-        fetch('/api/employer/vacancies'),
-        fetch('/api/goals?browse=true')
+        fetch(`/api/employer/vacancies?lang=${language}`),
+        fetch(`/api/goals?browse=true&lang=${language}`)
       ])
 
       if (vacanciesResponse.ok) {
@@ -194,9 +198,14 @@ export default function EmployerDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Your Vacancies */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 opacity-60">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">{t('employer.your_job_postings')}</h2>
+              <div className="flex items-center space-x-3">
+                <h2 className="text-2xl font-bold text-gray-900">{t('employer.your_job_postings')}</h2>
+                <span className="px-3 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800 border border-orange-200">
+                  🚧 In Development
+                </span>
+              </div>
               <Link
                 href="/employer/vacancies/create"
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
@@ -214,7 +223,7 @@ export default function EmployerDashboard() {
                     onClick={() => window.location.href = `/employer/vacancies/${vacancy.id}`}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-gray-900">{vacancy.name}</h3>
+                      <h3 className="font-semibold text-gray-900">{vacancy.localizedName || getLocalizedText(vacancy.name, language)}</h3>
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
                         {t('employer.active')}
                       </span>
@@ -255,9 +264,14 @@ export default function EmployerDashboard() {
           </div>
 
           {/* Potential Candidates */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 opacity-60">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">{t('employer.potential_candidates')}</h2>
+              <div className="flex items-center space-x-3">
+                <h2 className="text-2xl font-bold text-gray-900">{t('employer.potential_candidates')}</h2>
+                <span className="px-3 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800 border border-orange-200">
+                  🚧 In Development
+                </span>
+              </div>
               <Link
                 href="/goals"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-medium"
@@ -280,7 +294,7 @@ export default function EmployerDashboard() {
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">{goal.user?.name || 'Unknown User'}</div>
-                        <div className="text-sm text-gray-600">{goal.name}</div>
+                        <div className="text-sm text-gray-600">{goal.localizedName || getLocalizedText(goal.name, language)}</div>
                         <div className="text-xs text-gray-500">{t('employer.skills_count', { count: goal._count.topics.toString() })}</div>
                       </div>
                     </div>
@@ -312,44 +326,6 @@ export default function EmployerDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mt-8 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-100">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">{t('employer.quick_actions')}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link
-              href="/employer/vacancies/create"
-              className="flex items-center space-x-3 p-4 bg-white rounded-lg hover:shadow-md transition-shadow border border-gray-200"
-            >
-              <span className="text-2xl">➕</span>
-              <div>
-                <div className="font-semibold text-gray-900">{t('employer.post_new_job')}</div>
-                <div className="text-sm text-gray-600">{t('employer.post_job_description')}</div>
-              </div>
-            </Link>
-
-            <Link
-              href="/goals"
-              className="flex items-center space-x-3 p-4 bg-white rounded-lg hover:shadow-md transition-shadow border border-gray-200"
-            >
-              <span className="text-2xl">🎯</span>
-              <div>
-                <div className="font-semibold text-gray-900">{t('employer.browse_candidates')}</div>
-                <div className="text-sm text-gray-600">{t('employer.browse_candidates_description')}</div>
-              </div>
-            </Link>
-
-            <Link
-              href="/knowledge-graph"
-              className="flex items-center space-x-3 p-4 bg-white rounded-lg hover:shadow-md transition-shadow border border-gray-200"
-            >
-              <span className="text-2xl">🧠</span>
-              <div>
-                <div className="font-semibold text-gray-900">{t('employer.skill_map')}</div>
-                <div className="text-sm text-gray-600">{t('employer.skill_map_description')}</div>
-              </div>
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   )

@@ -92,7 +92,7 @@ const statusColors = {
 
 export default function StudentDashboard() {
   const { data: session } = useSession()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [goals, setGoals] = useState<Goal[]>([])
   const [recentTopics, setRecentTopics] = useState<StudentTopic[]>([])

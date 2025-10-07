@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Course {
   id: string
-  name: string
-  description?: string
+  name: string | any
+  localizedName?: string
+  description?: string | any
   createdAt: string
   _count: {
     topics: number
@@ -31,7 +33,8 @@ interface Course {
 interface RecentEnrollment {
   enrolledAt: string
   course: {
-    name: string
+    name: string | any
+    localizedName?: string
   }
   student: {
     name: string
@@ -51,7 +54,7 @@ interface EducatorData {
 
 export default function EducatorDashboard() {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [data, setData] = useState<EducatorData | null>(null)
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -59,11 +62,11 @@ export default function EducatorDashboard() {
   useEffect(() => {
     setMounted(true)
     fetchEducatorData()
-  }, [])
+  }, [language])
 
   const fetchEducatorData = async () => {
     try {
-      const response = await fetch('/api/educator/dashboard')
+      const response = await fetch(`/api/educator/dashboard?lang=${language}`)
       if (response.ok) {
         const educatorData = await response.json()
         setData(educatorData)
@@ -200,9 +203,9 @@ export default function EducatorDashboard() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 mb-1">{course.name}</h3>
+                          <h3 className="font-semibold text-gray-900 mb-1">{course.localizedName || getLocalizedText(course.name, language)}</h3>
                           {course.description && (
-                            <p className="text-sm text-gray-600 mb-3">{course.description}</p>
+                            <p className="text-sm text-gray-600 mb-3">{getLocalizedText(course.description, language)}</p>
                           )}
                           
                           <div className="flex items-center space-x-4 text-sm text-gray-500">
@@ -272,7 +275,7 @@ export default function EducatorDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{enrollment.student.name || 'Unknown'}</p>
-                        <p className="text-xs text-gray-500 truncate">{enrollment.course.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{enrollment.course.localizedName || getLocalizedText(enrollment.course.name, language)}</p>
                         <p className="text-xs text-gray-400">{new Date(enrollment.enrolledAt).toLocaleDateString()}</p>
                       </div>
                     </div>

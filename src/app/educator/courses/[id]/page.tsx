@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: any // Multilingual object
   slug: string
   type: string
 }
@@ -67,6 +69,7 @@ const statusColors = {
 
 export default function CourseManagementPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { language } = useLanguage()
   const [courseId, setCourseId] = useState<string>('')
   const [data, setData] = useState<CourseManagementData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -168,7 +171,6 @@ export default function CourseManagementPage({ params }: { params: Promise<{ id:
             </Link>
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900">{data.course.name}</h1>
-              <p className="text-gray-600 mt-1">{data.course.description}</p>
             </div>
             
             <div className="flex items-center space-x-3">
@@ -178,26 +180,6 @@ export default function CourseManagementPage({ params }: { params: Promise<{ id:
               >
                 Edit Course
               </Link>
-            </div>
-          </div>
-
-          {/* Course Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="text-2xl font-bold text-indigo-600">{data.course._count.enrollments}</div>
-              <div className="text-sm text-gray-600">Enrolled Students</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="text-2xl font-bold text-green-600">{data.course._count.topics}</div>
-              <div className="text-sm text-gray-600">Course Topics</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="text-2xl font-bold text-purple-600">
-                {data.studentsProgress.length > 0 
-                  ? Math.round(data.studentsProgress.reduce((sum, s) => sum + s.completionPercentage, 0) / data.studentsProgress.length)
-                  : 0}%
-              </div>
-              <div className="text-sm text-gray-600">Average Completion</div>
             </div>
           </div>
         </div>
@@ -228,13 +210,13 @@ export default function CourseManagementPage({ params }: { params: Promise<{ id:
                       }
                       
                       return (
-                        <th key={courseTopic.topic.id} className="px-2 py-4 text-center text-xs font-semibold text-gray-900 border-r border-gray-200 w-20 min-w-20 max-w-20" title={`${courseTopic.topic.name} (${courseTopic.topic.type})`}>
+                        <th key={courseTopic.topic.id} className="px-2 py-4 text-center text-xs font-semibold text-gray-900 border-r border-gray-200 w-20 min-w-20 max-w-20" title={`${getLocalizedText(courseTopic.topic.name, language)} (${courseTopic.topic.type})`}>
                           <div className="flex flex-col items-center space-y-1">
                             <div className="text-lg">
                               {getTopicIcon(courseTopic.topic.type)}
                             </div>
                             <div className="text-xs leading-tight text-center break-words line-clamp-2 max-w-16">
-                              {courseTopic.topic.name}
+                              {getLocalizedText(courseTopic.topic.name, language)}
                             </div>
                           </div>
                         </th>
@@ -379,6 +361,26 @@ export default function CourseManagementPage({ params }: { params: Promise<{ id:
               <p className="text-gray-600">Students will appear here once they enroll in your course.</p>
             </div>
           )}
+        </div>
+
+        {/* Course Stats - moved to bottom */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="text-2xl font-bold text-indigo-600">{data.course._count.enrollments}</div>
+            <div className="text-sm text-gray-600">Enrolled Students</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="text-2xl font-bold text-green-600">{data.course._count.topics}</div>
+            <div className="text-sm text-gray-600">Course Topics</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="text-2xl font-bold text-purple-600">
+              {data.studentsProgress.length > 0 
+                ? Math.round(data.studentsProgress.reduce((sum, s) => sum + s.completionPercentage, 0) / data.studentsProgress.length)
+                : 0}%
+            </div>
+            <div className="text-sm text-gray-600">Average Completion</div>
+          </div>
         </div>
       </div>
     </div>

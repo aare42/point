@@ -1,19 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 interface Topic {
   id: string
-  name: string
+  name: string | any
+  localizedName?: string
   slug: string
   type: string
-  description?: string
+  description?: string | any
 }
 
 export default function CreateGoalPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { language } = useLanguage()
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,11 +32,29 @@ export default function CreateGoalPage() {
 
   useEffect(() => {
     fetchTopics()
-  }, [])
+  }, [language])
+
+  useEffect(() => {
+    // Pre-fill form data from URL parameters (when coming from goal template)
+    const templateName = searchParams.get('name')
+    const templateDescription = searchParams.get('description')
+    const templateMotto = searchParams.get('motto')
+    const templateTopicIds = searchParams.get('topicIds')
+
+    if (templateName || templateDescription || templateMotto || templateTopicIds) {
+      setFormData(prev => ({
+        ...prev,
+        name: templateName || prev.name,
+        description: templateDescription || prev.description,
+        motto: templateMotto || prev.motto,
+        topicIds: templateTopicIds ? templateTopicIds.split(',') : prev.topicIds
+      }))
+    }
+  }, [searchParams])
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('/api/topics')
+      const response = await fetch(`/api/topics?lang=${language}`)
       if (response.ok) {
         const data = await response.json()
         setTopics(data)
@@ -126,7 +149,22 @@ export default function CreateGoalPage() {
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 🎯 Create New Goal
               </h1>
-              <p className="text-gray-600">Define your learning objectives and track your progress</p>
+              <p className="text-gray-600">
+                {searchParams.get('template') 
+                  ? 'Creating goal from template - customize as needed'
+                  : 'Define your learning objectives and track your progress'
+                }
+              </p>
+              {searchParams.get('template') && (
+                <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                  <div className="flex items-center space-x-2 text-sm text-indigo-700">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <span>Form pre-filled from goal template. Feel free to modify any fields.</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -225,12 +263,12 @@ export default function CreateGoalPage() {
                         <div className="flex items-start space-x-3">
                           <span className="text-2xl">{getTopicIcon(topic.type)}</span>
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 text-sm">{topic.name}</h4>
+                            <h4 className="font-medium text-gray-900 text-sm">{topic.localizedName || getLocalizedText(topic.name, language)}</h4>
                             <p className="text-xs text-gray-500 capitalize mt-1">
                               {topic.type?.toLowerCase() || 'unknown'} Topic
                             </p>
                             {topic.description && (
-                              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{topic.description}</p>
+                              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{getLocalizedText(topic.description, language)}</p>
                             )}
                           </div>
                           {formData.topicIds.includes(topic.id) && (

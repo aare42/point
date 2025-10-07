@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import KnowledgeGraph from '@/components/KnowledgeGraph'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { TopicType } from '@prisma/client'
@@ -43,6 +44,7 @@ interface GraphLink {
 
 export default function KnowledgeGraphPage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const { t, language } = useLanguage()
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,11 +78,16 @@ export default function KnowledgeGraphPage() {
   useEffect(() => {
     setMounted(true)
     fetchTopics()
-  }, [language])
+  }, [language, session])
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch(`/api/student/topics?lang=${language}`)
+      // Use public API for unauthenticated users, student API for authenticated users
+      const apiEndpoint = session 
+        ? `/api/student/topics?lang=${language}` 
+        : `/api/topics/public?lang=${language}`
+      
+      const response = await fetch(apiEndpoint)
       if (response.ok) {
         const data = await response.json()
         setTopics(data)
@@ -178,7 +185,7 @@ export default function KnowledgeGraphPage() {
   const fetchCoursesForTopic = async (topicId: string) => {
     setLoadingCourses(true)
     try {
-      const response = await fetch('/api/courses')
+      const response = await fetch(`/api/courses?lang=${language}`)
       if (response.ok) {
         const allCourses = await response.json()
         // Filter courses that include this topic
@@ -228,15 +235,15 @@ export default function KnowledgeGraphPage() {
             
             {/* Controls */}
             <div className="flex items-center space-x-4">
-              {/* Back to Dashboard Button */}
+              {/* Back Button */}
               <button
-                onClick={() => router.push('/student')}
+                onClick={() => session ? router.push('/student') : router.push('/')}
                 className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span>{t('nav.dashboard')}</span>
+                <span>{session ? t('nav.dashboard') : t('common.back')}</span>
               </button>
               
               {/* Search Input */}
@@ -340,14 +347,16 @@ export default function KnowledgeGraphPage() {
                 </div>
               </div>
               
-              <KnowledgeGraph
-                data={graphData}
-                width={selectedNode ? 800 : 1100}
-                height={700}
-                onNodeClick={handleNodeClick}
-                onNodeSelect={handleNodeSelect}
-                selectedNodeId={selectedNodeId}
-              />
+              <div className="flex justify-center">
+                <KnowledgeGraph
+                  data={graphData}
+                  width={selectedNode ? 800 : 1100}
+                  height={700}
+                  onNodeClick={handleNodeClick}
+                  onNodeSelect={handleNodeSelect}
+                  selectedNodeId={selectedNodeId}
+                />
+              </div>
             </div>
             
             {/* Right Panel - Topic Details */}
@@ -374,34 +383,36 @@ export default function KnowledgeGraphPage() {
                     </div>
                     <div className="flex-1">
                       <h4 className="font-bold text-gray-900 text-lg">{selectedNode.name}</h4>
-                      <div className="mt-2">
-                        {selectedNode.status !== 'LEARNED_AND_VALIDATED' ? (
-                          <select
-                            value={selectedNode.status || 'NOT_LEARNED'}
-                            onChange={(e) => updateTopicStatus(selectedNode.id, e.target.value)}
-                            disabled={updating === selectedNode.id}
-                            className={`px-3 py-1 border-2 rounded-full text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white ${
-                              updating === selectedNode.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                            } ${
-                              selectedNode.status === 'NOT_LEARNED' ? 'border-gray-500 text-gray-700' :
-                              selectedNode.status === 'WANT_TO_LEARN' ? 'border-blue-500 text-blue-700' :
-                              selectedNode.status === 'LEARNING' ? 'border-yellow-500 text-yellow-700' :
-                              selectedNode.status === 'LEARNED' ? 'border-green-500 text-green-700' :
-                              'border-gray-500 text-gray-700'
-                            }`}
-                          >
-                            {allowedStatuses.map((status) => (
-                              <option key={status} value={status}>
-                                {updating === selectedNode.id && selectedNode.status === status ? 'Updating...' : statusLabels[status as keyof typeof statusLabels]}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border-2 border-purple-500 text-purple-700 bg-purple-50">
-                            🎓 {statusLabels[selectedNode.status as keyof typeof statusLabels]}
-                          </span>
-                        )}
-                      </div>
+                      {session && (
+                        <div className="mt-2">
+                          {selectedNode.status !== 'LEARNED_AND_VALIDATED' ? (
+                            <select
+                              value={selectedNode.status || 'NOT_LEARNED'}
+                              onChange={(e) => updateTopicStatus(selectedNode.id, e.target.value)}
+                              disabled={updating === selectedNode.id}
+                              className={`px-3 py-1 border-2 rounded-full text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white ${
+                                updating === selectedNode.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                              } ${
+                                selectedNode.status === 'NOT_LEARNED' ? 'border-gray-500 text-gray-700' :
+                                selectedNode.status === 'WANT_TO_LEARN' ? 'border-blue-500 text-blue-700' :
+                                selectedNode.status === 'LEARNING' ? 'border-yellow-500 text-yellow-700' :
+                                selectedNode.status === 'LEARNED' ? 'border-green-500 text-green-700' :
+                                'border-gray-500 text-gray-700'
+                              }`}
+                            >
+                              {allowedStatuses.map((status) => (
+                                <option key={status} value={status}>
+                                  {updating === selectedNode.id && selectedNode.status === status ? 'Updating...' : statusLabels[status as keyof typeof statusLabels]}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border-2 border-purple-500 text-purple-700 bg-purple-50">
+                              🎓 {statusLabels[selectedNode.status as keyof typeof statusLabels]}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -623,9 +634,22 @@ export default function KnowledgeGraphPage() {
             <p className="text-gray-600 mb-4">
               Click on any topic to see detailed information, prerequisites, and what it unlocks.
             </p>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 mb-4">
               Topics are organized in levels - prerequisites appear higher than their dependents.
             </div>
+            {!session && (
+              <div className="mt-6 p-4 bg-white/50 rounded-lg border border-indigo-200">
+                <p className="text-sm text-gray-700 mb-3">
+                  🎓 <strong>Sign in to track your learning progress!</strong> Set topic statuses, create goals, and build your knowledge portfolio.
+                </p>
+                <button
+                  onClick={() => router.push('/')}
+                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                >
+                  Sign In to Get Started
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

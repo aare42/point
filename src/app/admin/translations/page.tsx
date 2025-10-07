@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { getLocalizedText, updateMultilingualText, hasTranslation } from '@/lib/utils/multilingual'
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type LanguageCode } from '@/lib/constants/languages'
 
-type EntityType = 'topics' | 'courses' | 'goal-templates' | 'vacancies'
+type EntityType = 'topics'
 
 interface BaseEntity {
   id: string
@@ -19,29 +19,7 @@ interface Topic extends BaseEntity {
   type: string
 }
 
-interface Course extends BaseEntity {
-  educator: {
-    name: string
-    email: string
-  }
-}
-
-interface GoalTemplate extends BaseEntity {
-  motto?: any
-  author: {
-    name: string
-    email: string
-  }
-}
-
-interface Vacancy extends BaseEntity {
-  author: {
-    name: string
-    email: string
-  }
-}
-
-type Entity = Topic | Course | GoalTemplate | Vacancy
+type Entity = Topic
 
 export default function TranslationsPage() {
   const { t } = useLanguage()
@@ -64,28 +42,9 @@ export default function TranslationsPage() {
       apiPath: '/api/topics',
       adminPath: '/api/admin/topics',
       fields: ['name', 'description', 'keypoints']
-    },
-    courses: {
-      title: 'Courses',
-      icon: '🎓',
-      apiPath: '/api/admin/courses',
-      adminPath: '/api/admin/courses',
-      fields: ['name', 'description']
-    },
-    'goal-templates': {
-      title: 'Goal Templates',
-      icon: '🎯',
-      apiPath: '/api/goal-templates',
-      adminPath: '/api/admin/goal-templates',
-      fields: ['name', 'description', 'motto']
-    },
-    vacancies: {
-      title: 'Vacancies',
-      icon: '💼',
-      apiPath: '/api/vacancies',
-      adminPath: '/api/admin/vacancies',
-      fields: ['name', 'description']
     }
+    // Note: Only Topics support multilingual fields in the database schema
+    // Courses, Goal Templates, and Vacancies use simple String fields
   }
 
   useEffect(() => {
@@ -119,10 +78,22 @@ export default function TranslationsPage() {
       const updatedValue = updateMultilingualText(currentValue, translationText, selectedTargetLanguage)
 
       const config = entityConfig[selectedEntityType]
-      const response = await fetch(`${config.adminPath}/${entityId}`, {
+      const url = `${config.adminPath}/${entityId}`
+      const payload = { [field]: updatedValue }
+      
+      console.log('Sending translation update:', {
+        url,
+        method: 'PATCH',
+        payload,
+        entityType: selectedEntityType,
+        field,
+        updatedValue
+      })
+      
+      const response = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: updatedValue })
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {
@@ -132,7 +103,9 @@ export default function TranslationsPage() {
         ))
         setEditing(null)
       } else {
-        alert('Failed to save translation')
+        const errorData = await response.json()
+        console.error('Translation save failed:', response.status, errorData)
+        alert(`Failed to save translation: ${errorData.error || 'Unknown error'} (Status: ${response.status})`)
       }
     } catch (error) {
       console.error('Failed to update translation:', error)
@@ -155,16 +128,7 @@ export default function TranslationsPage() {
   }
 
   const getEntityDisplayName = (entity: Entity) => {
-    if (selectedEntityType === 'topics') {
-      return `/${(entity as Topic).slug}`
-    }
-    if ('educator' in entity) {
-      return (entity as Course).educator.name || (entity as Course).educator.email
-    }
-    if ('author' in entity) {
-      return (entity as GoalTemplate | Vacancy).author.name || (entity as GoalTemplate | Vacancy).author.email
-    }
-    return ''
+    return `/${entity.slug}`
   }
 
   if (loading) {
@@ -188,26 +152,11 @@ export default function TranslationsPage() {
           Add translations from {SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].nativeName} to other languages
         </p>
         
-        {/* Entity Type Selector */}
-        <div className="flex items-center space-x-4 mb-4">
-          <label className="text-sm font-medium text-gray-700">
-            Content Type:
-          </label>
-          <div className="flex space-x-2">
-            {Object.entries(entityConfig).map(([key, conf]) => (
-              <button
-                key={key}
-                onClick={() => setSelectedEntityType(key as EntityType)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedEntityType === key
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {conf.icon} {conf.title}
-              </button>
-            ))}
-          </div>
+        {/* Info about content types */}
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            📚 <strong>Topics</strong> support multilingual content. Other content types (Courses, Goal Templates, Vacancies) use simple text and don't require translation.
+          </p>
         </div>
         
         {/* Language Selector */}

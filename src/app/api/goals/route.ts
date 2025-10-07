@@ -16,17 +16,64 @@ const CreateGoalSchema = z.object({
 
 const UpdateGoalSchema = CreateGoalSchema.partial()
 
-// GET /api/goals - List user's goals (authentication required)
+// GET /api/goals - List user's goals (authentication required) or browse goals (public)
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const language = (searchParams.get('lang') || 'en') as 'en' | 'uk'
+    const browse = searchParams.get('browse') === 'true'
+
+    // If browsing, return goal templates for employers to see what students are learning
+    if (browse) {
+      const goalTemplates = await prisma.goalTemplate.findMany({
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          topics: {
+            include: {
+              topic: {
+                select: { id: true, name: true, slug: true, type: true }
+              }
+            }
+          },
+          _count: {
+            select: { topics: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50
+      })
+
+      // Convert to goal-like format and localize the text fields  
+      const localizedTemplates = goalTemplates.map(template => ({
+        id: template.id,
+        name: getLocalizedText(template.name as any, language),
+        localizedName: getLocalizedText(template.name as any, language),
+        description: template.description ? getLocalizedText(template.description as any, language) : null,
+        motto: template.motto ? getLocalizedText(template.motto as any, language) : null,
+        deadline: null, // Templates don't have deadlines
+        createdAt: template.createdAt,
+        user: template.author, // Use author as "user" for compatibility
+        topics: template.topics.map(gt => ({
+          topic: {
+            ...gt.topic,
+            name: getLocalizedText(gt.topic.name as any, language),
+            localizedName: getLocalizedText(gt.topic.name as any, language)
+          }
+        })),
+        _count: template._count
+      }))
+
+      return NextResponse.json(localizedTemplates)
+    }
+
+    // Regular user goals functionality
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const { searchParams } = new URL(request.url)
-    const language = (searchParams.get('lang') || 'en') as 'en' | 'uk'
 
     // Return user's goals with detailed info including template reference
     const goals = await prisma.goal.findMany({
@@ -74,7 +121,8 @@ export async function GET(request: NextRequest) {
         ...gt,
         topic: {
           ...gt.topic,
-          name: getLocalizedText(gt.topic.name as any, language)
+          name: getLocalizedText(gt.topic.name as any, language),
+          localizedName: getLocalizedText(gt.topic.name as any, language)
         }
       }))
     }))

@@ -49,6 +49,7 @@ export async function GET(request: Request) {
     const topicsWithStatus = topics.map(topic => ({
       ...topic,
       name: getLocalizedText(topic.name as any, language),
+      localizedName: getLocalizedText(topic.name as any, language),
       description: getLocalizedText(topic.description as any, language),
       keypoints: getLocalizedText(topic.keypoints as any, language),
       status: topic.studentTopics[0]?.status || 'NOT_LEARNED',
@@ -56,7 +57,8 @@ export async function GET(request: Request) {
         ...p,
         prerequisite: {
           ...p.prerequisite,
-          name: getLocalizedText(p.prerequisite.name as any, language)
+          name: getLocalizedText(p.prerequisite.name as any, language),
+          localizedName: getLocalizedText(p.prerequisite.name as any, language)
         }
       }))
     }))

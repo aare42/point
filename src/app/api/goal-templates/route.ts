@@ -3,10 +3,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { getLocalizedText } from '@/lib/utils/multilingual'
 
 // GET - fetch all goal templates (public endpoint)
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const url = new URL(req.url)
+    const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
+
     const goalTemplates = await prisma.goalTemplate.findMany({
       include: {
         author: {
@@ -23,10 +27,27 @@ export async function GET() {
           select: { topics: true, goals: true }
         }
       },
-      orderBy: { name: 'asc' }
+      orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json(goalTemplates)
+    // Localize the text fields
+    const localizedGoalTemplates = goalTemplates.map(template => ({
+      ...template,
+      name: getLocalizedText(template.name as any, language),
+      localizedName: getLocalizedText(template.name as any, language),
+      description: template.description ? getLocalizedText(template.description as any, language) : null,
+      motto: template.motto ? getLocalizedText(template.motto as any, language) : null,
+      topics: template.topics.map(tt => ({
+        ...tt,
+        topic: {
+          ...tt.topic,
+          name: getLocalizedText(tt.topic.name as any, language),
+          localizedName: getLocalizedText(tt.topic.name as any, language)
+        }
+      }))
+    }))
+
+    return NextResponse.json(localizedGoalTemplates)
   } catch (error) {
     console.error('Error fetching goal templates:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
