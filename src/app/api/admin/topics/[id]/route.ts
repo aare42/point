@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     console.log('PATCH /api/admin/topics/[id] called')
@@ -19,7 +19,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const topicId = params.id
+    const { id: topicId } = await params
     const updates = await request.json()
     console.log('Topic PATCH request:', { topicId, updates })
 

@@ -178,7 +178,6 @@ const translations = {
     'vacancies.vacancies': 'vacancies',
     'vacancies.required_skills': 'Required Skills:',
     'vacancies.skills_count': '{{count}} skills',
-    'vacancies.create_learning_goal': 'Create Learning Goal',
     'vacancies.creating_goal': 'Creating Goal...',
     'vacancies.sign_in_to_create': 'Sign In to Create Goal',
     'vacancies.no_vacancies_found': 'No vacancies found',
@@ -503,7 +502,6 @@ const translations = {
     'vacancies.vacancies': 'вакансій',
     'vacancies.required_skills': 'Необхідні навички:',
     'vacancies.skills_count': '{{count}} навичок',
-    'vacancies.create_learning_goal': 'Створити навчальну ціль',
     'vacancies.creating_goal': 'Створення цілі...',
     'vacancies.sign_in_to_create': 'Увійдіть, щоб створити ціль',
     'vacancies.no_vacancies_found': 'Вакансій не знайдено',
@@ -690,7 +688,7 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   }
 
   const t = (key: string, params?: Record<string, string>): string => {
-    let translation = translations[language][key] || translations['en'][key] || key
+    let translation = (translations[language] as any)[key] || (translations['en'] as any)[key] || key
     
     // Replace parameters like {{param}} with actual values
     if (params) {

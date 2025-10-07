@@ -88,14 +88,14 @@ export default function KnowledgeGraph({
       .on('zoom', (event) => {
         // Update both local and persistent transform state
         persistentTransform.current = event.transform
-        graphContainer.attr('transform', event.transform)
+        graphContainer.attr('transform', event.transform.toString())
       })
 
     svgElement.call(zoomBehavior)
     
     // Restore previous transform state or use identity for first render
     svgElement.call(zoomBehavior.transform, persistentTransform.current)
-    graphContainer.attr('transform', persistentTransform.current)
+    graphContainer.attr('transform', persistentTransform.current.toString())
 
     // Direct grid-based layout following user instructions
     const gridBasedLayout = () => {
