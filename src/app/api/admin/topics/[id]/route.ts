@@ -3,9 +3,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+interface RouteParams {
+  params: Promise<{
+    id: string
+  }>
+}
+
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: RouteParams
 ) {
   try {
     console.log('PATCH /api/admin/topics/[id] called')
@@ -19,7 +25,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id: topicId } = await params
+    const { id: topicId } = await context.params
     const updates = await req.json()
     console.log('Topic PATCH request:', { topicId, updates })
 
