@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function PATCH(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -20,7 +20,7 @@ export async function PATCH(
     }
 
     const { id: topicId } = await params
-    const updates = await request.json()
+    const updates = await req.json()
     console.log('Topic PATCH request:', { topicId, updates })
 
     // Update the topic
