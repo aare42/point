@@ -17,12 +17,17 @@ try {
   console.log('📦 Setting up database schema...');
   console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Missing');
   
-  // Use db push instead of migrate for clean PostgreSQL setup
-  execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-  console.log('✅ Database schema created successfully');
+  if (process.env.DATABASE_URL) {
+    // Use db push instead of migrate for clean PostgreSQL setup
+    execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+    console.log('✅ Database schema created successfully');
+  } else {
+    console.log('⚠️  No DATABASE_URL found, skipping database setup');
+  }
 } catch (error) {
   console.error('❌ Database setup failed:', error.message);
-  process.exit(1); // Exit if database setup fails
+  console.log('🔄 Continuing without database setup...');
+  // Don't exit - allow the app to start even if DB setup fails
 }
 
 // Seed database only in development
