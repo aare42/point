@@ -30,17 +30,22 @@ try {
   // Don't exit - allow the app to start even if DB setup fails
 }
 
-// Seed database only in development
-if (process.env.NODE_ENV === 'development' || process.env.ENABLE_SEEDING === 'true') {
+// Seed database in development or if explicitly enabled
+const shouldSeed = process.env.NODE_ENV === 'development' || 
+                  process.env.ENABLE_SEEDING === 'true' ||
+                  process.env.RAILWAY_ENVIRONMENT; // Enable on Railway
+
+if (shouldSeed) {
   try {
     console.log('🌱 Seeding database if needed...');
     execSync('node create-mock-data.js', { stdio: 'inherit' });
     console.log('✅ Database seeded');
   } catch (error) {
-    console.log('⚠️  Seeding skipped:', error.message);
+    console.log('⚠️  Seeding failed:', error.message);
+    console.log('🔄 Continuing without seeding...');
   }
 } else {
-  console.log('⏭️  Seeding skipped in production');
+  console.log('⏭️  Seeding skipped');
 }
 
 // Start the application
