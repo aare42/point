@@ -241,6 +241,28 @@ export default function AdminPage() {
             </div>
           </div>
         </Link>
+
+        <Link
+          href="/admin/seed"
+          className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+          <div className="p-12">
+            <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-300 text-center">🌱</div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4 group-hover:text-green-700 transition-colors text-center">
+              Database Seeding
+            </h2>
+            <p className="text-gray-600 group-hover:text-gray-800 transition-colors text-center text-lg">
+              Populate database with educational content
+            </p>
+            <div className="mt-8 flex items-center justify-center text-green-600 group-hover:text-green-800">
+              <span className="font-medium text-lg">Seed Database</span>
+              <svg className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   )
