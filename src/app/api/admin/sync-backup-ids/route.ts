@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import * as fs from 'fs'
 import * as path from 'path'
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // Check authentication and admin role
     const session = await getServerSession(authOptions)
