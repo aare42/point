@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       created: 0,
       skipped: 0,
       errors: 0,
-      details: []
+      details: [] as string[]
     }
 
     // Step 3: Import topics with encoding fix
