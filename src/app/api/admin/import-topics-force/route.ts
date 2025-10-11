@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       importResults.details.push('Cleared existing topics due to force mode')
     }
 
-    const topicMapping = {}
+    const topicMapping: Record<string, string> = {}
 
     // Import topics
     for (const topic of data.data.topic) {
