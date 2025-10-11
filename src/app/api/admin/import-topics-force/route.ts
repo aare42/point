@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       skipped: 0,
       updated: 0,
       errors: 0,
-      details: []
+      details: [] as string[]
     }
 
     // Clear existing topics if force mode
