@@ -19,7 +19,7 @@ Add short description comment to each non-obvious method and to each file.
 
 ## Technology Stack & Implementation Status
 
-**Tech Stack**: Next.js 15 + TypeScript + Tailwind CSS + Prisma + SQLite + NextAuth.js
+**Tech Stack**: Next.js 15 + TypeScript + Tailwind CSS + Prisma + SQLite (local) / PostgreSQL (production) + NextAuth.js
 
 ### ✅ COMPLETED MODULES:
 1. **Authentication System**: Google OAuth2 with NextAuth.js, role-based access (USER, EDITOR, ADMIN)
@@ -44,11 +44,28 @@ npx prisma migrate dev --name [name]  # Create database migration
 npx prisma generate  # Generate Prisma client after schema changes
 ```
 
-## Database Operations
+## Database Configuration
 
-- Database file: `./dev.db` (SQLite)
+### Dual Database Setup
+- **Local Development**: SQLite (`./dev.db`) 
+- **Production**: PostgreSQL (Railway)
+- **Configuration**: Environment-based via `DATABASE_PROVIDER` variable
+
+### Environment Variables
+```bash
+# Local Development (.env.local)
+DATABASE_URL="file:./dev.db"
+DATABASE_PROVIDER="sqlite"
+
+# Production (Railway environment)
+DATABASE_URL="postgresql://..."
+DATABASE_PROVIDER="postgresql"
+```
+
+### Database Operations
 - Admin promotion: First user can promote themselves via `/api/admin/promote`
 - All entities implemented: User, Topic, Goal, Course, Vacancy with proper relationships
+- Schema automatically adapts to database provider based on environment
 
 ## Architecture Overview
 
