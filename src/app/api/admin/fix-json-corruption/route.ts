@@ -3,7 +3,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export async function GET(request: NextRequest) {
+  return await handleJsonFix(request)
+}
+
 export async function POST(request: NextRequest) {
+  return await handleJsonFix(request)
+}
+
+async function handleJsonFix(request: NextRequest) {
   try {
     // Check authentication and admin role
     const session = await getServerSession(authOptions)
