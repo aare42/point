@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         email: session.user.email,
         role: session.user.role
       } : null,
-      tests: {}
+      tests: {} as any
     }
 
     // Test 1: Analytics query (works on production)
