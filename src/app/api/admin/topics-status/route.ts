@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         topicsByType: topicsByType.reduce((acc, item) => {
           acc[item.type] = item._count.type
           return acc
-        }, {}),
+        }, {} as Record<string, number>),
         duplicateSlugs: duplicateSlugs.length,
         orphanedTopics: orphanedTopics.length
       },
