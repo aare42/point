@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       const topicsToProcess = data.data.topic.slice(0, 3) // Only process first 3 for debugging
       
       for (const topic of topicsToProcess) {
-        const topicDebug = {
+        const topicDebug: any = {
           originalSlug: topic.slug,
           originalName: topic.name,
           nameType: typeof topic.name,
