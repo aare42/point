@@ -21,30 +21,31 @@ export async function GET(request: NextRequest) {
       data: {} as any
     }
 
-    // Export all tables
-    const tables = [
-      'user',
-      'topic', 
-      'topicPrerequisite',
-      'studentTopic',
-      'course',
-      'courseEnrollment',
-      'courseTopic',
-      'goal',
-      'goalTopic',
-      'goalTemplate',
-      'goalTemplateTopic',
-      'vacancy',
-      'vacancyTopic'
-    ]
+    // Export all tables with correct Prisma model names
+    const tableMapping = {
+      'user': 'user',
+      'topic': 'topic', 
+      'topicPrerequisite': 'topicPrerequisite',
+      'studentTopic': 'studentTopic',
+      'course': 'course',
+      'courseEnrollment': 'courseEnrollment',
+      'courseTopic': 'courseTopic',
+      'goal': 'goal',
+      'goalTopic': 'goalTopic',
+      'goalTemplate': 'goalTemplate',
+      'goalTemplateTopic': 'goalTemplateTopic',
+      'vacancy': 'vacancy',
+      'vacancyTopic': 'vacancyTopic'
+    }
 
-    for (const table of tables) {
+    for (const [exportName, modelName] of Object.entries(tableMapping)) {
       try {
-        const data = await (prisma as any)[table].findMany()
-        backup.data[table] = data
+        const data = await (prisma as any)[modelName].findMany()
+        backup.data[exportName] = data
+        console.log(`Exported ${data.length} records from ${modelName}`)
       } catch (error) {
-        console.warn(`Failed to export ${table}:`, error)
-        backup.data[table] = []
+        console.warn(`Failed to export ${modelName}:`, error)
+        backup.data[exportName] = []
       }
     }
 
