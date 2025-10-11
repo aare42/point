@@ -62,7 +62,11 @@ export async function GET(request: NextRequest) {
       restored: {
         topicPrerequisites: 0,
         courseTopics: 0,
-        goalTopics: 0
+        goalTopics: 0,
+        goalTemplateTopics: 0,
+        vacancyTopics: 0,
+        studentTopics: 0,
+        courseEnrollments: 0
       },
       errors: [] as string[]
     }
@@ -187,6 +191,170 @@ export async function GET(request: NextRequest) {
             results.restored.goalTopics++
           } catch (error) {
             results.errors.push(`Failed to restore goal topic: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          }
+        }
+      }
+    }
+
+    // Restore goal template topics
+    const goalTemplateMapping: Record<string, string> = {}
+    if (data.data.goalTemplate && Array.isArray(data.data.goalTemplate)) {
+      const currentGoalTemplates = await prisma.goalTemplate.findMany({ 
+        select: { id: true, name: true, authorId: true } 
+      })
+      
+      for (const backupTemplate of data.data.goalTemplate) {
+        const newAuthorId = userMapping[backupTemplate.authorId]
+        if (newAuthorId) {
+          const currentTemplate = currentGoalTemplates.find(gt => 
+            gt.name === backupTemplate.name && gt.authorId === newAuthorId
+          )
+          if (currentTemplate) {
+            goalTemplateMapping[backupTemplate.id] = currentTemplate.id
+          }
+        }
+      }
+    }
+
+    if (data.data.goalTemplateTopic && Array.isArray(data.data.goalTemplateTopic)) {
+      for (const goalTemplateTopic of data.data.goalTemplateTopic) {
+        const newTemplateId = goalTemplateMapping[goalTemplateTopic.goalTemplateId]
+        const newTopicId = topicMapping[goalTemplateTopic.topicId]
+        
+        if (newTemplateId && newTopicId) {
+          try {
+            await prisma.goalTemplateTopic.upsert({
+              where: {
+                goalTemplateId_topicId: {
+                  goalTemplateId: newTemplateId,
+                  topicId: newTopicId
+                }
+              },
+              update: {},
+              create: {
+                goalTemplateId: newTemplateId,
+                topicId: newTopicId
+              }
+            })
+            results.restored.goalTemplateTopics++
+          } catch (error) {
+            results.errors.push(`Failed to restore goal template topic: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          }
+        }
+      }
+    }
+
+    // Restore vacancy topics
+    const vacancyMapping: Record<string, string> = {}
+    if (data.data.vacancy && Array.isArray(data.data.vacancy)) {
+      const currentVacancies = await prisma.vacancy.findMany({ 
+        select: { id: true, name: true, authorId: true } 
+      })
+      
+      for (const backupVacancy of data.data.vacancy) {
+        const newAuthorId = userMapping[backupVacancy.authorId]
+        if (newAuthorId) {
+          const currentVacancy = currentVacancies.find(v => 
+            v.name === backupVacancy.name && v.authorId === newAuthorId
+          )
+          if (currentVacancy) {
+            vacancyMapping[backupVacancy.id] = currentVacancy.id
+          }
+        }
+      }
+    }
+
+    if (data.data.vacancyTopic && Array.isArray(data.data.vacancyTopic)) {
+      for (const vacancyTopic of data.data.vacancyTopic) {
+        const newVacancyId = vacancyMapping[vacancyTopic.vacancyId]
+        const newTopicId = topicMapping[vacancyTopic.topicId]
+        
+        if (newVacancyId && newTopicId) {
+          try {
+            await prisma.vacancyTopic.upsert({
+              where: {
+                vacancyId_topicId: {
+                  vacancyId: newVacancyId,
+                  topicId: newTopicId
+                }
+              },
+              update: {},
+              create: {
+                vacancyId: newVacancyId,
+                topicId: newTopicId
+              }
+            })
+            results.restored.vacancyTopics++
+          } catch (error) {
+            results.errors.push(`Failed to restore vacancy topic: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          }
+        }
+      }
+    }
+
+    // Restore student topics (student progress)
+    if (data.data.studentTopic && Array.isArray(data.data.studentTopic)) {
+      for (const studentTopic of data.data.studentTopic) {
+        const newUserId = userMapping[studentTopic.userId]
+        const newTopicId = topicMapping[studentTopic.topicId]
+        const newValidatorId = studentTopic.validatedBy ? userMapping[studentTopic.validatedBy] : null
+        
+        if (newUserId && newTopicId) {
+          try {
+            await prisma.studentTopic.upsert({
+              where: {
+                userId_topicId: {
+                  userId: newUserId,
+                  topicId: newTopicId
+                }
+              },
+              update: {
+                status: studentTopic.status,
+                validatedBy: newValidatorId,
+                updatedAt: new Date(studentTopic.updatedAt)
+              },
+              create: {
+                userId: newUserId,
+                topicId: newTopicId,
+                status: studentTopic.status,
+                validatedBy: newValidatorId,
+                createdAt: new Date(studentTopic.createdAt),
+                updatedAt: new Date(studentTopic.updatedAt)
+              }
+            })
+            results.restored.studentTopics++
+          } catch (error) {
+            results.errors.push(`Failed to restore student topic: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          }
+        }
+      }
+    }
+
+    // Restore course enrollments
+    if (data.data.courseEnrollment && Array.isArray(data.data.courseEnrollment)) {
+      for (const enrollment of data.data.courseEnrollment) {
+        const newCourseId = courseMapping[enrollment.courseId]
+        const newStudentId = userMapping[enrollment.studentId]
+        
+        if (newCourseId && newStudentId) {
+          try {
+            await prisma.courseEnrollment.upsert({
+              where: {
+                courseId_studentId: {
+                  courseId: newCourseId,
+                  studentId: newStudentId
+                }
+              },
+              update: {},
+              create: {
+                courseId: newCourseId,
+                studentId: newStudentId,
+                enrolledAt: new Date(enrollment.enrolledAt)
+              }
+            })
+            results.restored.courseEnrollments++
+          } catch (error) {
+            results.errors.push(`Failed to restore course enrollment: ${error instanceof Error ? error.message : 'Unknown error'}`)
           }
         }
       }
