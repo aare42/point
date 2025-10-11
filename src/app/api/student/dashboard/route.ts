@@ -134,14 +134,14 @@ export async function GET(request: NextRequest) {
 
     const localizedGoalsWithProgress = goalsWithProgress.map(goal => ({
       ...goal,
-      name: getLocalizedText(goal.name as any, language),
-      motto: goal.motto ? getLocalizedText(goal.motto as any, language) : null
+      name: typeof goal.name === 'string' ? goal.name : getLocalizedText(goal.name as any, language),
+      motto: goal.motto ? (typeof goal.motto === 'string' ? goal.motto : getLocalizedText(goal.motto as any, language)) : null
     }))
 
     const localizedCoursesWithProgress = coursesWithProgress.map(course => ({
       ...course,
-      name: getLocalizedText(course.name as any, language),
-      description: course.description ? getLocalizedText(course.description as any, language) : null
+      name: typeof course.name === 'string' ? course.name : getLocalizedText(course.name as any, language),
+      description: course.description ? (typeof course.description === 'string' ? course.description : getLocalizedText(course.description as any, language)) : null
     }))
 
     return NextResponse.json({
