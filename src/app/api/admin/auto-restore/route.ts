@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Read the backup file from the server
-    const backupPath = path.join(process.cwd(), 'db-backups', 'use this db.json')
+    // Read the backup file from the public directory
+    const backupPath = path.join(process.cwd(), 'public', 'backup.json')
     
     if (!fs.existsSync(backupPath)) {
       return NextResponse.json({ 
