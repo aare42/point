@@ -183,7 +183,7 @@ export default function GoalTemplatesPage() {
                 {t('courses.student_dashboard')}
               </Link>
               <Link
-                href="/knowledge-graph"
+                href="/knowledge-graph?from=/goals"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
                 {t('courses.knowledge_graph')}
@@ -306,7 +306,11 @@ export default function GoalTemplatesPage() {
                           return (
                             <span
                               key={goalTopic.topic.id}
-                              className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/knowledge-graph/local/${goalTopic.topic.slug}?from=/goals`)
+                              }}
+                              className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer hover:scale-105 transition-transform ${statusColor}`}
                               title={session?.user ? `${goalTopic.topic.localizedName || getLocalizedText(goalTopic.topic.name, language)} - Status: ${status.replace('_', ' ').toLowerCase()}` : goalTopic.topic.localizedName || getLocalizedText(goalTopic.topic.name, language)}
                             >
                               <span>

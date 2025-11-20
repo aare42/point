@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -92,6 +93,7 @@ const statusColors = {
 
 export default function StudentDashboard() {
   const { data: session } = useSession()
+  const router = useRouter()
   const { t, language } = useLanguage()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [goals, setGoals] = useState<Goal[]>([])
@@ -491,7 +493,7 @@ export default function StudentDashboard() {
                 </h2>
               </Link>
               <Link
-                href="/knowledge-graph"
+                href="/knowledge-graph?from=/student"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-medium"
               >
                 {t('student.view_graph')}
@@ -519,7 +521,12 @@ export default function StudentDashboard() {
                         {change.topic.type === 'PROJECT' && '🚀'}
                       </span>
                       <div>
-                        <span className="font-medium text-gray-900 block">{change.topic.name}</span>
+                        <span 
+                          onClick={() => router.push(`/knowledge-graph/local/${change.topic.slug}?from=/student`)}
+                          className="font-medium text-gray-900 block hover:text-indigo-600 cursor-pointer transition-colors"
+                        >
+                          {change.topic.name}
+                        </span>
                         <span className="text-xs text-gray-500">
                           {t('student.changed_at', { 
                             date: new Date(change.updatedAt).toLocaleDateString(), 
@@ -561,7 +568,7 @@ export default function StudentDashboard() {
                 <p className="text-gray-600 mb-4">{t('student.start_learning')}</p>
                 <div className="flex items-center justify-center space-x-4">
                   <Link
-                    href="/knowledge-graph"
+                    href="/knowledge-graph?from=/student"
                     className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
                   >
                     {t('student.explore_topics')}

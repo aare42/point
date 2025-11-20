@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import KnowledgeGraph from '@/components/KnowledgeGraph'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -44,6 +44,7 @@ interface GraphLink {
 
 export default function KnowledgeGraphPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const { t, language } = useLanguage()
   const [topics, setTopics] = useState<Topic[]>([])
@@ -75,10 +76,66 @@ export default function KnowledgeGraphPage() {
 
   const allowedStatuses = ['NOT_LEARNED', 'WANT_TO_LEARN', 'LEARNING', 'LEARNED']
 
+  // Smart back navigation function
+  const handleBackNavigation = () => {
+    const referrer = searchParams.get('from')
+    
+    if (referrer) {
+      // Navigate back to the specific page they came from
+      router.push(referrer)
+    } else {
+      // Fallback to browser back or dashboard
+      if (window.history.length > 1) {
+        router.back()
+      } else {
+        // Final fallback
+        router.push(session ? '/student' : '/')
+      }
+    }
+  }
+
+  // Get appropriate back button text based on referrer
+  const getBackButtonText = () => {
+    const referrer = searchParams.get('from')
+    
+    if (referrer) {
+      if (referrer.includes('/knowledge-graph/local/')) return 'Back to Local View'
+      if (referrer.includes('/student')) return 'Back to Dashboard'
+    }
+    
+    return session ? 'Back to Dashboard' : 'Back'
+  }
+
   useEffect(() => {
     setMounted(true)
     fetchTopics()
   }, [language, session])
+
+  // Handle center parameter from URL
+  useEffect(() => {
+    const centerTopicId = searchParams.get('center')
+    if (centerTopicId && topics.length > 0) {
+      const centerTopic = topics.find(topic => topic.id === centerTopicId)
+      if (centerTopic) {
+        // Convert topic to GraphNode format
+        const graphNode: GraphNode = {
+          id: centerTopic.id,
+          name: getLocalizedText(centerTopic.name, language),
+          slug: centerTopic.slug,
+          type: centerTopic.type,
+          description: centerTopic.description ? getLocalizedText(centerTopic.description, language) : undefined,
+          keypoints: centerTopic.keypoints ? getLocalizedText(centerTopic.keypoints, language) : undefined,
+          status: centerTopic.status || 'NOT_LEARNED'
+        }
+        
+        setSelectedNodeId(centerTopic.id)
+        setSelectedNode(graphNode)
+        
+        // Also fetch courses for this topic
+        fetchCoursesForTopic(centerTopic.id)
+      }
+    }
+  }, [topics, searchParams, language])
 
   const fetchTopics = async () => {
     try {
@@ -169,6 +226,22 @@ export default function KnowledgeGraphPage() {
     // You can add navigation or modal opening here
     // router.push(`/topics/${node.slug}`)
   }
+
+  // Switch to local view centered on selected topic
+  const switchToLocalView = (topicSlug?: string) => {
+    const slug = topicSlug || selectedNode?.slug
+    if (slug) {
+      router.push(`/knowledge-graph/local/${slug}`)
+    } else {
+      alert('Please select a topic first to center the local view')
+    }
+  }
+
+  // Handle double-click on node to switch to local view
+  const handleNodeDoubleClick = (node: GraphNode) => {
+    console.log('Double-click on global graph node:', node.name, 'navigating to local view')
+    router.push(`/knowledge-graph/local/${node.slug}?from=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+  }
   
   const handleNodeSelect = (node: GraphNode | null) => {
     setSelectedNode(node)
@@ -235,15 +308,15 @@ export default function KnowledgeGraphPage() {
             
             {/* Controls */}
             <div className="flex items-center space-x-4">
-              {/* Back Button */}
+              {/* Smart Back Button */}
               <button
-                onClick={() => session ? router.push('/student') : router.push('/')}
+                onClick={handleBackNavigation}
                 className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span>{session ? t('nav.dashboard') : t('common.back')}</span>
+                <span>{getBackButtonText()}</span>
               </button>
               
               {/* Search Input */}
@@ -353,8 +426,10 @@ export default function KnowledgeGraphPage() {
                   width={selectedNode ? 800 : 1100}
                   height={700}
                   onNodeClick={handleNodeClick}
+                  onNodeDoubleClick={handleNodeDoubleClick}
                   onNodeSelect={handleNodeSelect}
                   selectedNodeId={selectedNodeId}
+                  centerOnNodeId={searchParams.get('center') || undefined}
                 />
               </div>
             </div>
@@ -482,11 +557,8 @@ export default function KnowledgeGraphPage() {
                             {topicData.prerequisites.map(prereq => (
                               <div 
                                 key={prereq.prerequisite.id}
+                                onClick={() => router.push(`/knowledge-graph/local/${prereq.prerequisite.slug}?from=/knowledge-graph`)}
                                 className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                                onClick={() => {
-                                  const prereqNode = graphData.nodes.find(n => n.id === prereq.prerequisite.id)
-                                  if (prereqNode) handleNodeSelect(prereqNode)
-                                }}
                               >
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs ${
                                   prereq.prerequisite.type === 'THEORY' ? 'bg-blue-500' :
@@ -497,7 +569,7 @@ export default function KnowledgeGraphPage() {
                                   {prereq.prerequisite.type === 'PROJECT' && '🚀'}
                                 </div>
                                 <div className="flex-1">
-                                  <div className="font-medium text-gray-900 text-sm">{getLocalizedText(prereq.prerequisite.name, language)}</div>
+                                  <div className="font-medium text-gray-900 text-sm hover:text-indigo-600 transition-colors">{getLocalizedText(prereq.prerequisite.name, language)}</div>
                                   <div className="text-xs text-gray-500 capitalize">{prereq.prerequisite.type?.toLowerCase() || 'unknown'}</div>
                                 </div>
                               </div>
@@ -524,11 +596,8 @@ export default function KnowledgeGraphPage() {
                             {dependents.map(dependent => (
                               <div 
                                 key={dependent.id}
+                                onClick={() => router.push(`/knowledge-graph/local/${dependent.slug}?from=/knowledge-graph`)}
                                 className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                                onClick={() => {
-                                  const depNode = graphData.nodes.find(n => n.id === dependent.id)
-                                  if (depNode) handleNodeSelect(depNode)
-                                }}
                               >
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs ${
                                   dependent.type === 'THEORY' ? 'bg-blue-500' :
@@ -539,7 +608,7 @@ export default function KnowledgeGraphPage() {
                                   {dependent.type === 'PROJECT' && '🚀'}
                                 </div>
                                 <div className="flex-1">
-                                  <div className="font-medium text-gray-900 text-sm">{getLocalizedText(dependent.name, language)}</div>
+                                  <div className="font-medium text-gray-900 text-sm hover:text-indigo-600 transition-colors">{getLocalizedText(dependent.name, language)}</div>
                                   <div className="text-xs text-gray-500 capitalize">{dependent.type?.toLowerCase() || 'unknown'}</div>
                                 </div>
                               </div>

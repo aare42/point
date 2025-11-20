@@ -332,7 +332,7 @@ export default function GoalsPage() {
                                 <span className="text-lg">{getTopicIcon(topic.type)}</span>
                                 <div className="flex-1">
                                   <Link 
-                                    href={`/knowledge-graph?selected=${topic.id}`}
+                                    href={`/knowledge-graph?selected=${topic.id}&from=/student/goals`}
                                     className="font-medium text-gray-900 text-sm hover:text-indigo-600 cursor-pointer transition-colors"
                                   >
                                     {topic.localizedName || getLocalizedText(topic.name, language)}
@@ -376,7 +376,7 @@ export default function GoalsPage() {
                         {goal._count.topics > 3 && (
                           <div className="text-center py-2 text-sm text-gray-500">
                             <Link 
-                              href={`/knowledge-graph?goal=${goal.id}`}
+                              href={`/knowledge-graph?goal=${goal.id}&from=/student/goals`}
                               className="text-indigo-600 hover:text-indigo-700 underline"
                             >
                               +{goal._count.topics - 3} more topics - View in Knowledge Graph

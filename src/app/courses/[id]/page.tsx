@@ -248,7 +248,12 @@ export default function PublicCoursePage({ params }: { params: Promise<{ id: str
                           {courseTopic.topic.type === 'PROJECT' && '🚀'}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{courseTopic.topic.localizedName || getLocalizedText(courseTopic.topic.name, language)}</h3>
+                          <h3 
+                            onClick={() => router.push(`/knowledge-graph/local/${courseTopic.topic.slug}?from=${encodeURIComponent(window.location.pathname)}`)}
+                            className="font-medium text-gray-900 hover:text-indigo-600 cursor-pointer transition-colors"
+                          >
+                            {courseTopic.topic.localizedName || getLocalizedText(courseTopic.topic.name, language)}
+                          </h3>
                           <p className="text-sm text-gray-500 capitalize">{courseTopic.topic.type.toLowerCase()}</p>
                           {courseTopic.topic.description && (
                             <p className="text-sm text-gray-600 mt-1 line-clamp-2">{getLocalizedText(courseTopic.topic.description, language)}</p>
@@ -342,7 +347,7 @@ export default function PublicCoursePage({ params }: { params: Promise<{ id: str
                   Browse All Courses
                 </Link>
                 <Link
-                  href="/knowledge-graph"
+                  href={`/knowledge-graph?from=${encodeURIComponent('/courses/' + course.id)}`}
                   className="block px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-medium"
                 >
                   Knowledge Graph

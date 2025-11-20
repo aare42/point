@@ -34,8 +34,10 @@ interface KnowledgeGraphProps {
   width?: number
   height?: number
   onNodeClick?: (node: GraphNode) => void
+  onNodeDoubleClick?: (node: GraphNode) => void
   selectedNodeId?: string
   onNodeSelect?: (node: GraphNode | null) => void
+  centerOnNodeId?: string
 }
 
 export default function KnowledgeGraph({ 
@@ -43,13 +45,14 @@ export default function KnowledgeGraph({
   width = 800, 
   height = 600, 
   onNodeClick,
+  onNodeDoubleClick,
   selectedNodeId,
-  onNodeSelect
+  onNodeSelect,
+  centerOnNodeId
 }: KnowledgeGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null)
   const [isClientMounted, setIsClientMounted] = useState(false)
-  const [isLegendOpen, setIsLegendOpen] = useState(false)
   // Persistent transform state that survives re-renders
   const persistentTransform = useRef(d3.zoomIdentity)
 
@@ -93,7 +96,7 @@ export default function KnowledgeGraph({
 
     svgElement.call(zoomBehavior)
     
-    // Restore previous transform state or use identity for first render
+    // Apply current persistent transform state initially
     svgElement.call(zoomBehavior.transform, persistentTransform.current)
     graphContainer.attr('transform', persistentTransform.current.toString())
 
@@ -1011,20 +1014,44 @@ export default function KnowledgeGraph({
           .style('stroke-width', 2.5)
           .attr('marker-end', 'url(#arrow)')
       })
+    // Click timeout for single/double click detection
+    let clickTimeout: NodeJS.Timeout | null = null
+
+    nodeGroups
       .on('click', function(event, nodeData) {
         // Prevent any default behavior
         event.preventDefault()
         event.stopPropagation()
         
-        // Store current transform state before callbacks
-        const savedTransform = persistentTransform.current
+        // Delay single click to allow for double-click detection
+        if (clickTimeout) {
+          clearTimeout(clickTimeout)
+          clickTimeout = null
+        }
         
-        // Execute callbacks (this will cause re-render)
-        onNodeClick?.(nodeData)
-        onNodeSelect?.(nodeData)
+        clickTimeout = setTimeout(() => {
+          // Store current transform state before callbacks
+          const savedTransform = persistentTransform.current
+          
+          // Execute callbacks (this will cause re-render)
+          onNodeClick?.(nodeData)
+          onNodeSelect?.(nodeData)
+          
+          clickTimeout = null
+        }, 250) // 250ms delay to detect double-click
+      })
+      .on('dblclick', function(event, nodeData) {
+        event.preventDefault()
+        event.stopPropagation()
         
-        // The transform state is now preserved in persistentTransform.current
-        // and will be restored automatically on the next render
+        // Cancel single click if double-click occurs
+        if (clickTimeout) {
+          clearTimeout(clickTimeout)
+          clickTimeout = null
+        }
+        
+        console.log('Double-click detected on global graph node:', nodeData.name, 'ID:', nodeData.id)
+        onNodeDoubleClick?.(nodeData)
       })
 
     // Advanced Edge Detection & Auto-Fix Algorithm
@@ -1333,6 +1360,29 @@ export default function KnowledgeGraph({
     // Set initial node positions
     nodeGroups.attr('transform', nodeData => `translate(${nodeData.x || 0}, ${nodeData.y || 0})`)
 
+    // Apply centering if needed (after nodes are positioned)
+    if (centerOnNodeId) {
+      const targetNode = data.nodes.find(node => node.id === centerOnNodeId)
+      if (targetNode && targetNode.x !== undefined && targetNode.y !== undefined) {
+        const centerX = width / 2
+        const centerY = height / 2
+        const scale = 1.0
+        const translateX = centerX - targetNode.x * scale
+        const translateY = centerY - targetNode.y * scale
+        
+        const centeringTransform = d3.zoomIdentity
+          .translate(translateX, translateY)
+          .scale(scale)
+        
+        // Apply centering transform immediately
+        svgElement.call(zoomBehavior.transform, centeringTransform)
+        graphContainer.attr('transform', centeringTransform.toString())
+        
+        // Update persistent transform state
+        persistentTransform.current = centeringTransform
+      }
+    }
+
     // Run edge detection audit after initial positioning
     setTimeout(() => {
       runEdgeDetectionAudit()
@@ -1342,7 +1392,7 @@ export default function KnowledgeGraph({
     return () => {
       forceSimulation.stop()
     }
-  }, [isClientMounted, data, width, height, onNodeClick, onNodeSelect])
+  }, [isClientMounted, data, width, height, onNodeClick, onNodeSelect, centerOnNodeId])
   
   // Handle selectedNodeId changes separately without re-rendering the entire graph
   useEffect(() => {
@@ -1387,75 +1437,6 @@ export default function KnowledgeGraph({
       />
       
 
-      {/* Collapsible Legend */}
-      <div className="absolute bottom-4 left-4">
-        {/* Toggle Button */}
-        <button
-          onClick={() => setIsLegendOpen(!isLegendOpen)}
-          className="bg-white p-2 rounded-lg shadow-lg border hover:bg-gray-50 transition-colors mb-2"
-        >
-          <svg 
-            className={`w-5 h-5 text-gray-600 transition-transform ${isLegendOpen ? 'rotate-180' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" />
-          </svg>
-        </button>
-        
-        {/* Legend Content */}
-        {isLegendOpen && (
-          <div className="bg-white p-4 rounded-lg shadow-lg border min-w-64">
-            {/* Clustering Info */}
-            <div className="mb-4">
-              <h4 className="text-xs font-bold text-gray-700 mb-2">Knowledge Clusters</h4>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-blue-100 border border-blue-500 rounded-full"></div>
-                  <span className="text-xs text-gray-600">📚 Theory Concepts</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-100 border border-green-500 rounded-full"></div>
-                  <span className="text-xs text-gray-600">⚙️ Practical Skills</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-purple-100 border border-purple-500 rounded-full"></div>
-                  <span className="text-xs text-gray-600">🚀 Project Work</span>
-                </div>
-              </div>
-            </div>
-
-            
-            {/* Learning Status */}
-            <div>
-              <h4 className="text-xs font-bold text-gray-700 mb-2">Learning Status (Border Color)</h4>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-3 bg-gray-300 border-2 border-gray-500 rounded-sm"></div>
-                  <span className="text-xs text-gray-600">Not Learned</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-3 bg-gray-300 border-2 border-blue-500 rounded-sm"></div>
-                  <span className="text-xs text-gray-600">Want to Learn</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-3 bg-gray-300 border-2 border-yellow-500 rounded-sm"></div>
-                  <span className="text-xs text-gray-600">Learning</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-3 bg-gray-300 border-2 border-green-500 rounded-sm"></div>
-                  <span className="text-xs text-gray-600">Learned</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-3 bg-gray-300 border-2 border-purple-500 rounded-sm"></div>
-                  <span className="text-xs text-gray-600">🎓 Validated</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

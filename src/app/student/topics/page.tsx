@@ -152,7 +152,7 @@ export default function StudentTopics() {
                 <Link href="/student" className="text-gray-600 hover:text-gray-900">Dashboard</Link>
                 <Link href="/student/topics" className="text-blue-600 font-medium">Topics</Link>
                 <Link href="/student/goals" className="text-gray-600 hover:text-gray-900">Goals</Link>
-                <Link href="/knowledge-graph" className="text-gray-600 hover:text-gray-900">Knowledge Graph</Link>
+                <Link href="/knowledge-graph?from=/student/topics" className="text-gray-600 hover:text-gray-900">Knowledge Graph</Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -300,7 +300,7 @@ export default function StudentTopics() {
               <p className="text-gray-600 mb-8">Start your learning journey by exploring topics and setting your status!</p>
               <div className="flex items-center justify-center space-x-4">
                 <Link
-                  href="/knowledge-graph"
+                  href="/knowledge-graph?from=/student/topics"
                   className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                 >
                   Explore All Topics

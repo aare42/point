@@ -151,7 +151,7 @@ export default function CoursesPage() {
                 {t('courses.student_dashboard')}
               </Link>
               <Link
-                href="/knowledge-graph"
+                href="/knowledge-graph?from=/courses"
                 className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
               >
                 {t('courses.knowledge_graph')}
@@ -259,7 +259,11 @@ export default function CoursesPage() {
                           return (
                             <span
                               key={courseTopic.topic.id}
-                              className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/knowledge-graph/local/${courseTopic.topic.slug}?from=/courses`)
+                              }}
+                              className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer hover:scale-105 transition-transform ${statusColor}`}
                               title={session?.user ? `${courseTopic.topic.name} - Status: ${status.replace('_', ' ').toLowerCase()}` : courseTopic.topic.name}
                             >
                               <span>
@@ -341,7 +345,7 @@ export default function CoursesPage() {
             </p>
             <div className="flex items-center justify-center space-x-4">
               <Link
-                href="/knowledge-graph"
+                href="/knowledge-graph?from=/courses"
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
                 {t('courses.explore_knowledge_graph')}
