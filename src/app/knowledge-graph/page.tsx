@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import KnowledgeGraph from '@/components/KnowledgeGraph'
@@ -42,7 +42,7 @@ interface GraphLink {
   value: number
 }
 
-export default function KnowledgeGraphPage() {
+function KnowledgeGraphContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { data: session } = useSession()
@@ -723,5 +723,26 @@ export default function KnowledgeGraphPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center py-20">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading knowledge graph...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function KnowledgeGraphPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <KnowledgeGraphContent />
+    </Suspense>
   )
 }

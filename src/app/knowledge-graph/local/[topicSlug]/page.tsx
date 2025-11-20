@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -17,7 +17,7 @@ interface Topic {
   status?: string
 }
 
-export default function LocalKnowledgeGraphPage() {
+function LocalKnowledgeGraphContent() {
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
@@ -604,5 +604,26 @@ export default function LocalKnowledgeGraphPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center py-20">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading local knowledge graph...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function LocalKnowledgeGraphPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <LocalKnowledgeGraphContent />
+    </Suspense>
   )
 }
