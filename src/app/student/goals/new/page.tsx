@@ -35,7 +35,7 @@ function CreateGoalPageContent() {
   }, [language])
 
   useEffect(() => {
-    // Pre-fill form data from URL parameters (when coming from goal template)
+    // Pre-fill form data from URL parameters (when coming from goal template or graph)
     const templateName = searchParams.get('name')
     const templateDescription = searchParams.get('description')
     const templateMotto = searchParams.get('motto')
@@ -152,16 +152,23 @@ function CreateGoalPageContent() {
               <p className="text-gray-600">
                 {searchParams.get('template') 
                   ? 'Creating goal from template - customize as needed'
+                  : searchParams.get('topicIds')
+                  ? 'Creating goal from knowledge graph - topics pre-selected'
                   : 'Define your learning objectives and track your progress'
                 }
               </p>
-              {searchParams.get('template') && (
+              {(searchParams.get('template') || searchParams.get('topicIds')) && (
                 <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
                   <div className="flex items-center space-x-2 text-sm text-indigo-700">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
-                    <span>Form pre-filled from goal template. Feel free to modify any fields.</span>
+                    <span>
+                      {searchParams.get('template') 
+                        ? 'Form pre-filled from goal template. Feel free to modify any fields.'
+                        : 'Topics pre-selected from knowledge graph. Feel free to modify selection.'
+                      }
+                    </span>
                   </div>
                 </div>
               )}

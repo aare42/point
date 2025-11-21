@@ -57,6 +57,8 @@ function KnowledgeGraphContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [courses, setCourses] = useState<any[]>([])
   const [loadingCourses, setLoadingCourses] = useState(false)
+  const [creationMode, setCreationMode] = useState<'course' | 'goal' | 'vacancy' | null>(null)
+  const [selectedTopicsForCreation, setSelectedTopicsForCreation] = useState<string[]>([])
 
   const statusLabels = {
     NOT_LEARNED: t('status.not_learned'),
@@ -203,7 +205,8 @@ function KnowledgeGraphContent() {
         description: getLocalizedText(topic.description, language),
         keypoints: getLocalizedText(topic.keypoints, language),
         status: topic.status,
-        highlighted: matchesSearch && matchesType
+        highlighted: matchesSearch && matchesType,
+        selected: creationMode ? selectedTopicsForCreation.includes(topic.id) : false
       }
     })
 
@@ -222,9 +225,17 @@ function KnowledgeGraphContent() {
   }
 
   const handleNodeClick = (node: GraphNode) => {
-    setSelectedNodeId(node.id)
-    // You can add navigation or modal opening here
-    // router.push(`/topics/${node.slug}`)
+    if (creationMode) {
+      // In creation mode, toggle topic selection
+      setSelectedTopicsForCreation(prev => 
+        prev.includes(node.id)
+          ? prev.filter(id => id !== node.id)
+          : [...prev, node.id]
+      )
+    } else {
+      // Normal mode
+      setSelectedNodeId(node.id)
+    }
   }
 
   // Switch to local view centered on selected topic
@@ -275,6 +286,48 @@ function KnowledgeGraphContent() {
     }
   }
 
+  // Creation mode functions
+  const startCreationMode = (mode: 'course' | 'goal' | 'vacancy') => {
+    setCreationMode(mode)
+    setSelectedTopicsForCreation([])
+    setSelectedNode(null) // Clear selected node when entering creation mode
+    setSelectedNodeId('')
+  }
+
+  const cancelCreationMode = () => {
+    setCreationMode(null)
+    setSelectedTopicsForCreation([])
+  }
+
+  const proceedToCreation = () => {
+    if (!creationMode || selectedTopicsForCreation.length === 0) {
+      alert('Please select at least one topic to continue')
+      return
+    }
+
+    const topicIds = selectedTopicsForCreation.join(',')
+    
+    switch (creationMode) {
+      case 'course':
+        router.push(`/educator/courses/new?topicIds=${topicIds}`)
+        break
+      case 'goal':
+        router.push(`/student/goals/new?topicIds=${topicIds}`)
+        break
+      case 'vacancy':
+        router.push(`/employer/vacancies/create?topicIds=${topicIds}`)
+        break
+    }
+  }
+
+  // Get user's current role for showing appropriate creation buttons
+  const getCurrentRole = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedRole') || 'STUDENT'
+    }
+    return 'STUDENT'
+  }
+
 
   if (!mounted || loading) {
     return (
@@ -300,60 +353,135 @@ function KnowledgeGraphContent() {
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
                 🧠 {t('graph.title')}
+                {creationMode && (
+                  <span className="text-lg ml-4 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full">
+                    {creationMode === 'course' && '📚 Course Creation Mode'}
+                    {creationMode === 'goal' && '🎯 Goal Creation Mode'}
+                    {creationMode === 'vacancy' && '💼 Vacancy Creation Mode'}
+                  </span>
+                )}
               </h1>
               <p className="text-gray-600">
-                {t('graph.subtitle')}
+                {creationMode 
+                  ? `Click on topics to select them for your new ${creationMode}. Selected: ${selectedTopicsForCreation.length} topics`
+                  : t('graph.subtitle')
+                }
               </p>
             </div>
             
             {/* Controls */}
             <div className="flex items-center space-x-4">
-              {/* Smart Back Button */}
-              <button
-                onClick={handleBackNavigation}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span>{getBackButtonText()}</span>
-              </button>
-              
-              {/* Search Input */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder={t('graph.search_topics')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white w-64"
-                />
-                <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                {searchQuery && (
+              {/* Creation Mode Controls */}
+              {creationMode ? (
+                <>
                   <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                    onClick={cancelCreationMode}
+                    className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
+                    <span>Cancel</span>
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={proceedToCreation}
+                    disabled={selectedTopicsForCreation.length === 0}
+                    className="flex items-center space-x-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                  >
+                    <span>Continue ({selectedTopicsForCreation.length} selected)</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Role-based Creation Buttons */}
+                  {session && (
+                    <div className="flex items-center space-x-2">
+                      {getCurrentRole() === 'EDUCATOR' && (
+                        <button
+                          onClick={() => startCreationMode('course')}
+                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                          <span>📚</span>
+                          <span>Create Course</span>
+                        </button>
+                      )}
+                      {getCurrentRole() === 'STUDENT' && (
+                        <button
+                          onClick={() => startCreationMode('goal')}
+                          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                        >
+                          <span>🎯</span>
+                          <span>Create Goal</span>
+                        </button>
+                      )}
+                      {getCurrentRole() === 'EMPLOYER' && (
+                        <button
+                          onClick={() => startCreationMode('vacancy')}
+                          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                        >
+                          <span>💼</span>
+                          <span>Post Job</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Smart Back Button */}
+                  <button
+                    onClick={handleBackNavigation}
+                    className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>{getBackButtonText()}</span>
+                  </button>
+                </>
+              )}
               
-              {/* Type Filter */}
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as TopicType | 'ALL')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-              >
-                <option value="ALL">{t('graph.highlight_all')}</option>
-                <option value="THEORY">📚 {t('graph.highlight_theory')}</option>
-                <option value="PRACTICE">⚙️ {t('graph.highlight_practice')}</option>
-                <option value="PROJECT">🚀 {t('graph.highlight_projects')}</option>
-              </select>
+              {/* Search and Filter - Hide in creation mode */}
+              {!creationMode && (
+                <>
+                  {/* Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder={t('graph.search_topics')}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white w-64"
+                    />
+                    <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Type Filter */}
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value as TopicType | 'ALL')}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                  >
+                    <option value="ALL">{t('graph.highlight_all')}</option>
+                    <option value="THEORY">📚 {t('graph.highlight_theory')}</option>
+                    <option value="PRACTICE">⚙️ {t('graph.highlight_practice')}</option>
+                    <option value="PROJECT">🚀 {t('graph.highlight_projects')}</option>
+                  </select>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -423,7 +551,7 @@ function KnowledgeGraphContent() {
               <div className="flex justify-center">
                 <KnowledgeGraph
                   data={graphData}
-                  width={selectedNode ? 800 : 1100}
+                  width={selectedNode && !creationMode ? 800 : 1100}
                   height={700}
                   onNodeClick={handleNodeClick}
                   onNodeDoubleClick={handleNodeDoubleClick}
@@ -434,8 +562,8 @@ function KnowledgeGraphContent() {
               </div>
             </div>
             
-            {/* Right Panel - Topic Details */}
-            {selectedNode && (
+            {/* Right Panel - Topic Details (hidden in creation mode) */}
+            {selectedNode && !creationMode && (
               <div className="w-80 bg-white rounded-2xl shadow-xl border border-gray-200">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100">

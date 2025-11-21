@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 
@@ -13,8 +13,9 @@ interface Topic {
   localizedName: string
 }
 
-export default function CreateVacancyPage() {
+function CreateVacancyPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const [topics, setTopics] = useState<Topic[]>([])
   const [filteredTopics, setFilteredTopics] = useState<Topic[]>([])
@@ -30,6 +31,17 @@ export default function CreateVacancyPage() {
   useEffect(() => {
     fetchTopics()
   }, [])
+
+  // Handle pre-selected topics from URL parameters
+  useEffect(() => {
+    const topicIds = searchParams.get('topicIds')
+    if (topicIds) {
+      setFormData(prev => ({
+        ...prev,
+        topicIds: topicIds.split(',')
+      }))
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (searchTerm.trim() === '') {
@@ -143,8 +155,21 @@ export default function CreateVacancyPage() {
             💼 Post New Job
           </h1>
           <p className="text-gray-600">
-            Create a job posting and specify the skills you're looking for in candidates.
+            {searchParams.get('topicIds')
+              ? 'Create a job posting - skills pre-selected from knowledge graph'
+              : 'Create a job posting and specify the skills you\'re looking for in candidates.'
+            }
           </p>
+          {searchParams.get('topicIds') && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center space-x-2 text-sm text-green-700">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <span>Skills pre-selected from knowledge graph. Feel free to modify selection.</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Form */}
@@ -239,5 +264,22 @@ export default function CreateVacancyPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CreateVacancyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-20">
+            <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading vacancy creation form...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <CreateVacancyPageContent />
+    </Suspense>
   )
 }

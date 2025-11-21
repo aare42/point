@@ -12,6 +12,7 @@ interface GraphNode {
   description?: string
   status?: string
   highlighted?: boolean
+  selected?: boolean
   fx?: number
   fy?: number
   x?: number
@@ -62,6 +63,8 @@ export default function KnowledgeGraph({
 
   // Node colors based on selection, hover, and highlighting
   const getNodeColor = (nodeData: GraphNode, isSelected: boolean, isHovered: boolean) => {
+    // Priority: selection for creation > normal selection > hover > highlighting
+    if (nodeData.selected) return '#10B981'  // Green when selected for creation
     if (isSelected) return '#1F2937'  // Dark gray when selected
     if (isHovered) return '#374151'   // Medium gray when hovered
     
@@ -929,8 +932,8 @@ export default function KnowledgeGraph({
       .attr('rx', 8) // Rounded corners
       .style('fill', nodeData => getNodeColor(nodeData, nodeData.id === selectedNodeId, false))
       .style('fill-opacity', nodeData => getNodeOpacity(nodeData))
-      .style('stroke', nodeData => getStatusBorderColor(nodeData.status))
-      .style('stroke-width', 4)
+      .style('stroke', nodeData => nodeData.selected ? '#059669' : getStatusBorderColor(nodeData.status)) // Green border for selected
+      .style('stroke-width', nodeData => nodeData.selected ? 6 : 4) // Thicker border for selected
       .style('stroke-opacity', nodeData => getNodeOpacity(nodeData))
       .style('filter', 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))')
 

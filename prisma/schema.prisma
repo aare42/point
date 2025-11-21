@@ -1,10 +1,10 @@
-// Simple, clean schema for educational platform
+// Simple, clean schema for educational platform - SQLite version for local development
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -73,11 +73,11 @@ model User {
 // Core educational entities
 model Topic {
   id           String      @id @default(cuid())
-  name         Json        // Multilingual: {"en": "English", "uk": "Українська"}
+  name         String      // JSON in SQLite stored as text
   slug         String      @unique
   type         TopicType
-  keypoints    Json        // Multilingual JSON: {"en": "key points", "uk": "ключові моменти"}
-  description  Json?       // Multilingual: {"en": "description", "uk": "опис"}
+  keypoints    String      // JSON in SQLite stored as text
+  description  String?     // JSON in SQLite stored as text
   authorId     String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

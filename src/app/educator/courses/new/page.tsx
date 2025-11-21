@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { TopicType } from '@prisma/client'
 
@@ -13,8 +13,9 @@ interface Topic {
   description?: string
 }
 
-export default function CreateCoursePage() {
+function CreateCoursePageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(true)
@@ -29,6 +30,14 @@ export default function CreateCoursePage() {
     setMounted(true)
     fetchTopics()
   }, [])
+
+  // Handle pre-selected topics from URL parameters
+  useEffect(() => {
+    const topicIds = searchParams.get('topicIds')
+    if (topicIds) {
+      setSelectedTopicIds(topicIds.split(','))
+    }
+  }, [searchParams])
 
   const fetchTopics = async () => {
     try {
@@ -195,6 +204,11 @@ export default function CreateCoursePage() {
               <h2 className="text-xl font-bold text-gray-900">Select Topics</h2>
               <div className="text-sm text-gray-600">
                 {selectedTopicIds.length} topics selected
+                {searchParams.get('topicIds') && (
+                  <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                    Pre-selected from graph
+                  </span>
+                )}
               </div>
             </div>
 
@@ -290,5 +304,22 @@ export default function CreateCoursePage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function CreateCoursePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-20">
+            <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading course creation form...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <CreateCoursePageContent />
+    </Suspense>
   )
 }
