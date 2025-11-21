@@ -53,6 +53,9 @@ npx prisma migrate dev --name [name]  # Create database migration
 npx prisma generate   # Generate Prisma client after schema changes
 ```
 
+**⚠️ CRITICAL**: Never commit `prisma/schema.prisma` when it contains SQLite configuration! 
+Always ensure PostgreSQL schema is active before committing to avoid production database issues.
+
 ## Database Configuration
 
 ### Dual Database Setup
