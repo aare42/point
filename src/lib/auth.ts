@@ -11,6 +11,9 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
+  pages: {
+    error: '/auth/error',
+  },
   callbacks: {
     session: async ({ session, token }) => {
       if (session?.user && token?.sub) {
@@ -59,4 +62,5 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
+  debug: process.env.NODE_ENV === 'development',
 }
