@@ -45,21 +45,42 @@ export const authOptions: NextAuthOptions = {
       
       // Always check user status for existing tokens
       if (token.sub) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { role: true, isBlocked: true, email: true }
-        })
-        if (dbUser) {
-          token.role = dbUser.role
-          token.isBlocked = dbUser.isBlocked
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { role: true, isBlocked: true, email: true }
+          })
+          if (dbUser) {
+            token.role = dbUser.role
+            token.isBlocked = dbUser.isBlocked || false // Default to false if field doesn't exist
+            
+            // Auto-grant admin to specific email (also check here)
+            if (dbUser.email === 'pawlovtaras@gmail.com' && dbUser.role !== 'ADMIN') {
+              await prisma.user.update({
+                where: { id: token.sub },
+                data: { role: 'ADMIN' }
+              }).catch(() => {})
+              token.role = 'ADMIN'
+            }
+          }
+        } catch (error) {
+          // Fallback for when isBlocked field doesn't exist yet (during migration)
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { role: true, email: true }
+          })
+          if (dbUser) {
+            token.role = dbUser.role
+            token.isBlocked = false // Default to false during migration period
           
-          // Auto-grant admin to specific email (also check here)
-          if (dbUser.email === 'pawlovtaras@gmail.com' && dbUser.role !== 'ADMIN') {
-            await prisma.user.update({
-              where: { id: token.sub },
-              data: { role: 'ADMIN' }
-            }).catch(() => {})
-            token.role = 'ADMIN'
+            // Auto-grant admin to specific email (also check here)
+            if (dbUser.email === 'pawlovtaras@gmail.com' && dbUser.role !== 'ADMIN') {
+              await prisma.user.update({
+                where: { id: token.sub },
+                data: { role: 'ADMIN' }
+              }).catch(() => {})
+              token.role = 'ADMIN'
+            }
           }
         }
       }
