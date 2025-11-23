@@ -112,11 +112,12 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ## Database Schema
 
 The application uses a comprehensive schema supporting:
-- User management with role-based access
+- User management with role-based access and content moderation
 - Topic relationships and prerequisites
 - Learning progress tracking
 - Course enrollment and completion
 - Goal setting and achievement
+- Content blocking and moderation features
 
 ## Contributing
 
