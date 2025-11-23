@@ -26,10 +26,23 @@ export async function GET(request: NextRequest) {
     }
 
     const courses = await prisma.course.findMany({
-      where: educatorId ? { educatorId } : { isPublic: true },
+      where: educatorId 
+        ? { 
+            educatorId,
+            educator: {
+              isBlocked: false
+            }
+          }
+        : { 
+            isPublic: true,
+            isBlocked: false,
+            educator: {
+              isBlocked: false
+            }
+          },
       include: {
         educator: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true, isBlocked: true }
         },
         topics: {
           include: {

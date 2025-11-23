@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { getLocalizedText } from '@/lib/utils/multilingual'
@@ -10,10 +11,13 @@ interface Course {
   name: any // Multilingual object or string
   description?: any // Multilingual object or string
   isPublic: boolean
+  isBlocked: boolean
   createdAt: string
   educator: {
+    id: string
     name: string
     email: string
+    isBlocked: boolean
   }
   _count: {
     topics: number
@@ -22,16 +26,40 @@ interface Course {
 }
 
 export default function AdminCoursesPage() {
+  const { data: session } = useSession()
   const { language } = useLanguage()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [deleting, setDeleting] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [blockingCourse, setBlockingCourse] = useState<string | null>(null)
+  const [deletingCourse, setDeletingCourse] = useState<string | null>(null)
+  const [isRootAdmin, setIsRootAdmin] = useState(false)
 
   useEffect(() => {
     fetchCourses()
-  }, [])
+    checkRootAdminStatus()
+  }, [session])
+
+  const checkRootAdminStatus = async () => {
+    if (!session?.user?.id) return
+    
+    try {
+      const response = await fetch('/api/admin/users')
+      if (response.ok) {
+        const data = await response.json()
+        // Check if current user is the first admin (root admin)
+        const allAdmins = data.filter((user: any) => user.role === 'ADMIN')
+        const firstAdmin = allAdmins.sort((a: any, b: any) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )[0]
+        setIsRootAdmin(firstAdmin?.id === session.user.id)
+      }
+    } catch (error) {
+      console.error('Error checking root admin status:', error)
+    }
+  }
 
   const fetchCourses = async () => {
     try {
@@ -98,6 +126,86 @@ export default function AdminCoursesPage() {
     }
   }
 
+  const handleBlockCourse = async (courseId: string, block: boolean) => {
+    if (!isRootAdmin) {
+      alert('Only root admin can block/unblock courses')
+      return
+    }
+
+    const course = courses.find(c => c.id === courseId)
+    const localizedName = getLocalizedText(course?.name, language, 'Unknown')
+    const action = block ? 'block' : 'unblock'
+    
+    if (!confirm(`Are you sure you want to ${action} the course "${localizedName}"?`)) {
+      return
+    }
+
+    setBlockingCourse(courseId)
+    
+    try {
+      const response = await fetch(`/api/admin/courses/${courseId}/block`, {
+        method: block ? 'POST' : 'DELETE'
+      })
+
+      if (response.ok) {
+        setCourses(courses.map(c => 
+          c.id === courseId ? { ...c, isBlocked: block } : c
+        ))
+        
+        const result = await response.json()
+        console.log(result.message)
+      } else {
+        const error = await response.json()
+        alert(error.error || `Failed to ${action} course`)
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing course:`, error)
+      alert(`Failed to ${action} course`)
+    } finally {
+      setBlockingCourse(null)
+    }
+  }
+
+  const handleDeleteCourse = async (courseId: string) => {
+    if (!isRootAdmin) {
+      alert('Only root admin can permanently delete courses')
+      return
+    }
+
+    const course = courses.find(c => c.id === courseId)
+    const localizedName = getLocalizedText(course?.name, language, 'Unknown')
+    
+    if (!confirm(
+      `Are you sure you want to PERMANENTLY DELETE the course "${localizedName}"? ` +
+      `This will delete all enrollments and cannot be undone.`
+    )) {
+      return
+    }
+
+    setDeletingCourse(courseId)
+    
+    try {
+      const response = await fetch(`/api/admin/courses/${courseId}/delete`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setCourses(courses.filter(c => c.id !== courseId))
+        
+        const result = await response.json()
+        console.log(result.message)
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete course')
+      }
+    } catch (error) {
+      console.error('Error deleting course:', error)
+      alert('Failed to delete course')
+    } finally {
+      setDeletingCourse(null)
+    }
+  }
+
   const filteredCourses = courses.filter(course => {
     const localizedName = getLocalizedText(course.name, language, '')
     const localizedDescription = getLocalizedText(course.description, language, '')
@@ -121,6 +229,11 @@ export default function AdminCoursesPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">📖 Course Management</h1>
           <p className="text-gray-600 mt-1">Manage all courses across your platform</p>
+          {isRootAdmin && (
+            <p className="text-sm text-blue-600 mt-2">
+              🔒 Root Admin: You have additional privileges to block and delete courses
+            </p>
+          )}
         </div>
         <Link
           href="/educator/courses/new"
@@ -168,7 +281,7 @@ export default function AdminCoursesPage() {
                     Students
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Visibility
+                    Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
@@ -210,47 +323,81 @@ export default function AdminCoursesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => togglePublic(course.id, course.isPublic)}
-                        disabled={updating === course.id}
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          course.isPublic 
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                        } ${updating === course.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        {updating === course.id ? (
-                          <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1"></span>
-                        ) : (
-                          <span className="mr-1">{course.isPublic ? '🌍' : '🔒'}</span>
+                      <div className="space-y-1">
+                        {course.isBlocked && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            🚫 Blocked
+                          </span>
                         )}
-                        {course.isPublic ? 'Public' : 'Private'}
-                      </button>
+                        <button
+                          onClick={() => togglePublic(course.id, course.isPublic)}
+                          disabled={updating === course.id}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            course.isPublic 
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                          } ${updating === course.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          {updating === course.id ? (
+                            <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1"></span>
+                          ) : (
+                            <span className="mr-1">{course.isPublic ? '🌍' : '🔒'}</span>
+                          )}
+                          {course.isPublic ? 'Public' : 'Private'}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(course.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
-                      <Link
-                        href={`/admin/courses/${course.id}`}
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        Edit
-                      </Link>
-                      <Link
-                        href={`/educator/courses/${course.id}`}
-                        className="text-green-600 hover:text-green-900"
-                        target="_blank"
-                      >
-                        View
-                      </Link>
-                      <button
-                        onClick={() => deleteCourse(course.id, course.name)}
-                        disabled={deleting === course.id}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                      >
-                        {deleting === course.id ? 'Deleting...' : 'Delete'}
-                      </button>
+                    <td className="px-6 py-4 text-right text-sm font-medium">
+                      <div className="space-y-2">
+                        <div className="space-x-2">
+                          <Link
+                            href={`/admin/courses/${course.id}`}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Edit
+                          </Link>
+                          <Link
+                            href={`/educator/courses/${course.id}`}
+                            className="text-green-600 hover:text-green-900"
+                            target="_blank"
+                          >
+                            View
+                          </Link>
+                          <button
+                            onClick={() => deleteCourse(course.id, course.name)}
+                            disabled={deleting === course.id}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                          >
+                            {deleting === course.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
+                        
+                        {isRootAdmin && (
+                          <div className="space-x-2">
+                            <button
+                              onClick={() => handleBlockCourse(course.id, !course.isBlocked)}
+                              disabled={blockingCourse === course.id}
+                              className={`text-xs px-2 py-1 rounded ${
+                                course.isBlocked 
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                              } disabled:opacity-50 transition-colors`}
+                            >
+                              {blockingCourse === course.id ? '...' : (course.isBlocked ? 'Unblock' : 'Block')}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCourse(course.id)}
+                              disabled={deletingCourse === course.id}
+                              className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 transition-colors"
+                            >
+                              {deletingCourse === course.id ? '...' : 'Force Delete'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

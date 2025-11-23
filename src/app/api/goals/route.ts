@@ -26,9 +26,14 @@ export async function GET(request: NextRequest) {
     // If browsing, return goal templates for employers to see what students are learning
     if (browse) {
       const goalTemplates = await prisma.goalTemplate.findMany({
+        where: {
+          author: {
+            isBlocked: false
+          }
+        },
         include: {
           author: {
-            select: { id: true, name: true, email: true }
+            select: { id: true, name: true, email: true, isBlocked: true }
           },
           topics: {
             include: {

@@ -52,6 +52,7 @@ model User {
   emailVerified DateTime?
   image         String?
   role          UserRole  @default(USER)
+  isBlocked     Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -180,6 +181,7 @@ model Course {
   name        String
   description String?
   isPublic    Boolean    @default(true)
+  isBlocked   Boolean    @default(false)
   educatorId  String
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt

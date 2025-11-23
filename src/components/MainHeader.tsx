@@ -101,7 +101,7 @@ export default function MainHeader() {
 
             {/* Sign out */}
             <button
-              onClick={() => signOut()}
+              onClick={() => signOut({ callbackUrl: '/' })}
               className="text-sm text-gray-600 hover:text-red-600 transition-colors"
             >
               {t('nav.sign_out')}

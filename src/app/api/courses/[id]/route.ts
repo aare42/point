@@ -52,6 +52,15 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
+    // Check if course is blocked (only allow access by educator and admins)
+    if (course.isBlocked) {
+      const session = await getServerSession(authOptions)
+      if (!session?.user?.id || 
+          (course.educatorId !== session.user.id && session.user.role !== 'ADMIN')) {
+        return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+      }
+    }
+
     // Localize the text fields
     const localizedCourse = {
       ...course,

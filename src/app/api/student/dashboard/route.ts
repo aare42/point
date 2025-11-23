@@ -73,14 +73,21 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get enrolled courses with progress
+    // Get enrolled courses with progress (exclude courses from blocked educators)
     const enrolledCourses = await prisma.courseEnrollment.findMany({
-      where: { studentId: userId },
+      where: { 
+        studentId: userId,
+        course: {
+          educator: {
+            isBlocked: false
+          }
+        }
+      },
       include: {
         course: {
           include: {
             educator: {
-              select: { name: true, email: true }
+              select: { name: true, email: true, isBlocked: true }
             },
             topics: {
               include: {

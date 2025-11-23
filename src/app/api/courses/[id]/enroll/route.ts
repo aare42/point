@@ -16,13 +16,17 @@ export async function POST(
     const { id } = await params
     const userId = session.user.id
 
-    // Check if course exists
+    // Check if course exists and educator is not blocked
     const course = await prisma.course.findUnique({
       where: { id },
       select: { 
         id: true, 
         name: true,
         educatorId: true,
+        isBlocked: true,
+        educator: {
+          select: { isBlocked: true }
+        },
         _count: {
           select: { enrollments: true }
         }
@@ -31,6 +35,14 @@ export async function POST(
 
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+    }
+
+    if (course.isBlocked) {
+      return NextResponse.json({ error: 'Course not available' }, { status: 403 })
+    }
+
+    if (course.educator.isBlocked) {
+      return NextResponse.json({ error: 'Course not available' }, { status: 403 })
     }
 
     // Check if user is trying to enroll in their own course

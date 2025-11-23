@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { withRootAdminAuth } from '@/lib/auth/middleware'
 import { z } from 'zod'
 
 const updateUserRoleSchema = z.object({
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
         email: true,
         image: true,
         role: true,
+        isBlocked: true,
         createdAt: true,
         updatedAt: true,
         _count: {

@@ -21,6 +21,11 @@ export const authOptions: NextAuthOptions = {
         if (token.role) {
           session.user.role = token.role as any
         }
+        
+        // Block access for blocked users
+        if (token.isBlocked) {
+          throw new Error('User account has been blocked. Please contact support.')
+        }
       }
       return session
     },
@@ -38,12 +43,15 @@ export const authOptions: NextAuthOptions = {
         }
       }
       
-      if (token.sub && !token.role) {
+      // Always check user status for existing tokens
+      if (token.sub) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.sub },
+          select: { role: true, isBlocked: true, email: true }
         })
         if (dbUser) {
           token.role = dbUser.role
+          token.isBlocked = dbUser.isBlocked
           
           // Auto-grant admin to specific email (also check here)
           if (dbUser.email === 'pawlovtaras@gmail.com' && dbUser.role !== 'ADMIN') {

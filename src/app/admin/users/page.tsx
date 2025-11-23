@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 
 interface User {
@@ -9,6 +10,7 @@ interface User {
   email: string
   image?: string
   role: 'USER' | 'EDITOR' | 'ADMIN'
+  isBlocked: boolean
   createdAt: string
   updatedAt: string
   _count: {
@@ -21,15 +23,39 @@ interface User {
 }
 
 export default function AdminUsersPage() {
+  const { data: session } = useSession()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'USER' | 'EDITOR' | 'ADMIN'>('ALL')
   const [updatingRole, setUpdatingRole] = useState<string | null>(null)
+  const [blockingUser, setBlockingUser] = useState<string | null>(null)
+  const [deletingUser, setDeletingUser] = useState<string | null>(null)
+  const [isRootAdmin, setIsRootAdmin] = useState(false)
 
   useEffect(() => {
     fetchUsers()
-  }, [])
+    checkRootAdminStatus()
+  }, [session])
+
+  const checkRootAdminStatus = async () => {
+    if (!session?.user?.id) return
+    
+    try {
+      const response = await fetch('/api/admin/users')
+      if (response.ok) {
+        const data = await response.json()
+        // Check if current user is the first admin (root admin)
+        const allAdmins = data.filter((user: User) => user.role === 'ADMIN')
+        const firstAdmin = allAdmins.sort((a: User, b: User) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )[0]
+        setIsRootAdmin(firstAdmin?.id === session.user.id)
+      }
+    } catch (error) {
+      console.error('Error checking root admin status:', error)
+    }
+  }
 
   const fetchUsers = async () => {
     try {
@@ -78,6 +104,81 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleBlockUser = async (userId: string, block: boolean) => {
+    if (!isRootAdmin) {
+      alert('Only root admin can block/unblock users')
+      return
+    }
+
+    const action = block ? 'block' : 'unblock'
+    if (!confirm(`Are you sure you want to ${action} this user?`)) {
+      return
+    }
+
+    setBlockingUser(userId)
+    
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/block`, {
+        method: block ? 'POST' : 'DELETE'
+      })
+
+      if (response.ok) {
+        setUsers(users.map(user => 
+          user.id === userId ? { ...user, isBlocked: block } : user
+        ))
+        
+        const result = await response.json()
+        console.log(result.message)
+      } else {
+        const error = await response.json()
+        alert(error.error || `Failed to ${action} user`)
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing user:`, error)
+      alert(`Failed to ${action} user`)
+    } finally {
+      setBlockingUser(null)
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!isRootAdmin) {
+      alert('Only root admin can delete users')
+      return
+    }
+
+    const user = users.find(u => u.id === userId)
+    if (!confirm(
+      `Are you sure you want to PERMANENTLY DELETE ${user?.email}? ` +
+      `This will delete all their content (courses, goals, topics, etc.) and cannot be undone.`
+    )) {
+      return
+    }
+
+    setDeletingUser(userId)
+    
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/delete`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setUsers(users.filter(user => user.id !== userId))
+        
+        const result = await response.json()
+        console.log(result.message)
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete user')
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert('Failed to delete user')
+    } finally {
+      setDeletingUser(null)
+    }
+  }
+
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'ADMIN': return 'bg-red-100 text-red-800'
@@ -115,6 +216,11 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
           <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
+          {isRootAdmin && (
+            <p className="text-sm text-blue-600 mt-2">
+              🔒 Root Admin: You have additional privileges to block and delete users
+            </p>
+          )}
         </div>
         <div className="flex space-x-4">
           <Link
@@ -172,6 +278,9 @@ export default function AdminUsersPage() {
                 Role
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Activity
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -213,6 +322,13 @@ export default function AdminUsersPage() {
                     {user.role}
                   </span>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    user.isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                  }`}>
+                    {user.isBlocked ? 'BLOCKED' : 'ACTIVE'}
+                  </span>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   <div className="space-y-1">
                     {user._count.educatedCourses > 0 && (
@@ -239,19 +355,50 @@ export default function AdminUsersPage() {
                   {new Date(user.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value as 'USER' | 'EDITOR' | 'ADMIN')}
-                    disabled={updatingRole === user.id}
-                    className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                  >
-                    <option value="USER">USER</option>
-                    <option value="EDITOR">EDITOR</option>
-                    <option value="ADMIN">ADMIN</option>
-                  </select>
-                  {updatingRole === user.id && (
-                    <div className="text-xs text-gray-500 mt-1">Updating...</div>
-                  )}
+                  <div className="space-y-2">
+                    <div>
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user.id, e.target.value as 'USER' | 'EDITOR' | 'ADMIN')}
+                        disabled={updatingRole === user.id}
+                        className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                      >
+                        <option value="USER">USER</option>
+                        <option value="EDITOR">EDITOR</option>
+                        <option value="ADMIN">ADMIN</option>
+                      </select>
+                      {updatingRole === user.id && (
+                        <div className="text-xs text-gray-500 mt-1">Updating...</div>
+                      )}
+                    </div>
+                    
+                    {isRootAdmin && user.id !== session?.user?.id && (
+                      <div className="space-x-2">
+                        <button
+                          onClick={() => handleBlockUser(user.id, !user.isBlocked)}
+                          disabled={blockingUser === user.id}
+                          className={`text-xs px-2 py-1 rounded ${
+                            user.isBlocked 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                              : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                          } disabled:opacity-50 transition-colors`}
+                        >
+                          {blockingUser === user.id ? '...' : (user.isBlocked ? 'Unblock' : 'Block')}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          disabled={deletingUser === user.id}
+                          className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 transition-colors"
+                        >
+                          {deletingUser === user.id ? '...' : 'Delete'}
+                        </button>
+                      </div>
+                    )}
+                    
+                    {isRootAdmin && user.id === session?.user?.id && (
+                      <div className="text-xs text-gray-500">Root Admin (You)</div>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

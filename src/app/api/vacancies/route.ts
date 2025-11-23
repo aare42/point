@@ -9,6 +9,11 @@ export async function GET(req: NextRequest) {
     const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
 
     const vacancies = await prisma.vacancy.findMany({
+      where: {
+        author: {
+          isBlocked: false
+        }
+      },
       select: {
         id: true,
         name: true,
@@ -18,7 +23,8 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            isBlocked: true
           }
         },
         topics: {

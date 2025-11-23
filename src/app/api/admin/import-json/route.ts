@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
               email: importUser.email,
               name: importUser.name,
               role: importUser.role || 'USER',
-              image: importUser.image
+              image: importUser.image,
+              isBlocked: importUser.isBlocked ?? false // Default to false for old exports
               // Don't include the old ID - let Prisma generate a new one
             }
             const newUser = await prisma.user.create({ data: userData })
@@ -83,46 +84,59 @@ export async function POST(request: NextRequest) {
     if (data.data.topic && Array.isArray(data.data.topic)) {
       try {
         for (const topic of data.data.topic) {
-          // Check if topic already exists
-          const existingTopic = await prisma.topic.findUnique({
-            where: { slug: topic.slug }
-          })
-          
-          if (!existingTopic) {
-            // Transform old string format to new multilingual format
-            const transformedTopic = {
-              ...topic,
-              name: typeof topic.name === 'string' 
-                ? createMultilingualText(topic.name) 
-                : topic.name,
-              description: topic.description 
-                ? (typeof topic.description === 'string' 
-                    ? createMultilingualText(topic.description) 
-                    : topic.description)
-                : null,
-              keypoints: typeof topic.keypoints === 'string' 
-                ? createMultilingualText(topic.keypoints) 
-                : topic.keypoints,
-              // Use current admin user's ID if authorId is invalid
-              authorId: session.user.id!
+          try {
+            // Check if topic already exists
+            const existingTopic = await prisma.topic.findUnique({
+              where: { slug: topic.slug }
+            })
+            
+            if (!existingTopic) {
+              console.log(`Processing topic: ${topic.name} (slug: ${topic.slug})`)
+              
+              // Transform old string format to new multilingual format
+              const transformedTopic = {
+                ...topic,
+                name: typeof topic.name === 'string' 
+                  ? JSON.stringify(createMultilingualText(topic.name))
+                  : JSON.stringify(topic.name),
+                description: topic.description 
+                  ? (typeof topic.description === 'string' 
+                      ? JSON.stringify(createMultilingualText(topic.description))
+                      : JSON.stringify(topic.description))
+                  : null,
+                keypoints: typeof topic.keypoints === 'string' 
+                  ? JSON.stringify(createMultilingualText(topic.keypoints))
+                  : JSON.stringify(topic.keypoints),
+                // Use current admin user's ID if authorId is invalid
+                authorId: session.user.id!
+              }
+              
+              // Store the old ID before removing it
+              const oldTopicId = topic.id
+              // Remove old ID to let Prisma generate new one
+              delete transformedTopic.id
+              
+              console.log(`Creating topic with data:`, transformedTopic)
+              
+              const newTopic = await prisma.topic.create({ data: transformedTopic })
+              // Map old ID to new ID
+              topicMapping[oldTopicId] = newTopic.id
+              importedCount++
+              
+              console.log(`Successfully created topic: ${newTopic.id}`)
+            } else {
+              // Topic exists, map old ID to existing ID
+              topicMapping[topic.id] = existingTopic.id
+              console.log(`Topic already exists: ${topic.slug}`)
             }
-            
-            // Store the old ID before removing it
-            const oldTopicId = topic.id
-            // Remove old ID to let Prisma generate new one
-            delete transformedTopic.id
-            
-            const newTopic = await prisma.topic.create({ data: transformedTopic })
-            // Map old ID to new ID
-            topicMapping[oldTopicId] = newTopic.id
-            importedCount++
-          } else {
-            // Topic exists, map old ID to existing ID
-            topicMapping[topic.id] = existingTopic.id
+          } catch (topicError) {
+            console.error(`Failed to import individual topic ${topic.slug}:`, topicError)
+            results.push(`Topic ${topic.slug} failed: ${topicError instanceof Error ? topicError.message : 'Unknown error'}`)
           }
         }
         results.push(`${data.data.topic.length} topics processed`)
       } catch (error) {
+        console.error('Topics import failed:', error)
         results.push(`Topics import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
@@ -190,6 +204,7 @@ export async function POST(request: NextRequest) {
                     : (course.description?.uk || course.description?.en || JSON.stringify(course.description)))
                 : null,
               isPublic: course.isPublic ?? true,
+              isBlocked: course.isBlocked ?? false, // Default to false for old exports
               educatorId: userMapping[course.educatorId] || allUsers[0]?.id,
               createdAt: new Date(course.createdAt),
               updatedAt: new Date(course.updatedAt)

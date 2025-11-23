@@ -23,11 +23,20 @@ export async function GET(req: NextRequest) {
     }
 
     const courses = await prisma.course.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isPublic: true,
+        isBlocked: true,
+        createdAt: true,
+        updatedAt: true,
         educator: {
           select: {
+            id: true,
             name: true,
-            email: true
+            email: true,
+            isBlocked: true
           }
         },
         _count: {
