@@ -41,7 +41,12 @@ export async function DELETE(
       )
     }
 
-    // Delete the user - Prisma cascade will handle related data
+    // Delete user's vacancies first (not handled by cascade)
+    await prisma.vacancy.deleteMany({
+      where: { authorId: userId }
+    })
+
+    // Delete the user - Prisma cascade will handle other related data
     // (courses, goals, topics, etc. will be deleted automatically)
     await prisma.user.delete({
       where: { id: userId }
