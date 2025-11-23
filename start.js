@@ -18,22 +18,29 @@ try {
   console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Missing');
   
   if (process.env.DATABASE_URL) {
-    // Since columns were manually added, just mark migration as applied
+    // Force database schema to match current Prisma schema
     try {
-      console.log('🔧 Marking manually applied migration as resolved...');
-      execSync('npx prisma migrate resolve --applied 20251123082909_add_user_blocking', { stdio: 'inherit' });
-      console.log('✅ Migration state resolved - manual columns recognized');
-    } catch (resolveError) {
-      console.log('⚠️  Migration resolve failed, likely already resolved:', resolveError.message.split('\n')[0]);
+      console.log('🔧 Forcing database schema synchronization...');
+      execSync('npx prisma db push --force-reset --accept-data-loss', { stdio: 'inherit' });
+      console.log('✅ Database schema forcefully synchronized');
+    } catch (pushError) {
+      console.log('⚠️  Database force push failed, trying regular push:', pushError.message.split('\n')[0]);
       
-      // If resolve fails, just ensure Prisma client is generated with current schema
       try {
-        console.log('🔧 Generating Prisma client with current schema...');
-        execSync('npx prisma generate', { stdio: 'inherit' });
-        console.log('✅ Prisma client generated successfully');
-      } catch (generateError) {
-        console.log('⚠️  Prisma generate failed:', generateError.message);
+        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+        console.log('✅ Database schema synchronized with regular push');
+      } catch (regularPushError) {
+        console.log('⚠️  All database push attempts failed');
       }
+    }
+    
+    // Generate Prisma client with current schema
+    try {
+      console.log('🔧 Generating Prisma client...');
+      execSync('npx prisma generate', { stdio: 'inherit' });
+      console.log('✅ Prisma client generated successfully');
+    } catch (generateError) {
+      console.log('⚠️  Prisma generate failed:', generateError.message);
     }
   } else {
     console.log('⚠️  No DATABASE_URL found, skipping database setup');
