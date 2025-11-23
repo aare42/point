@@ -105,6 +105,7 @@ export default function AdminUsersPage() {
   }
 
   const handleBlockUser = async (userId: string, block: boolean) => {
+    console.log('Block user attempt:', { userId, block, isRootAdmin, sessionUserId: session?.user?.id })
     if (!isRootAdmin) {
       alert('Only root admin can block/unblock users')
       return
@@ -142,6 +143,7 @@ export default function AdminUsersPage() {
   }
 
   const handleDeleteUser = async (userId: string) => {
+    console.log('Delete user attempt:', { userId, isRootAdmin, sessionUserId: session?.user?.id })
     if (!isRootAdmin) {
       alert('Only root admin can delete users')
       return
