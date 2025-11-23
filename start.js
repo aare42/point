@@ -18,32 +18,29 @@ try {
   console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Missing');
   
   if (process.env.DATABASE_URL) {
-    // First, try to resolve the manually applied migration
+    // Since columns were manually added, just mark migration as applied
     try {
-      console.log('🔧 Resolving manually applied migration...');
+      console.log('🔧 Marking manually applied migration as resolved...');
       execSync('npx prisma migrate resolve --applied 20251123082909_add_user_blocking', { stdio: 'inherit' });
-      console.log('✅ Migration state resolved');
+      console.log('✅ Migration state resolved - manual columns recognized');
     } catch (resolveError) {
-      console.log('⚠️  Migration resolve failed (might be already resolved):', resolveError.message);
-    }
-    
-    // Then deploy any pending migrations
-    try {
-      console.log('🚀 Deploying migrations...');
-      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-      console.log('✅ Migrations deployed successfully');
-    } catch (migrateError) {
-      console.log('⚠️  Migration deploy failed, trying db push...');
-      // Fallback to db push if migrations fail
-      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-      console.log('✅ Database schema created with db push');
+      console.log('⚠️  Migration resolve failed, likely already resolved:', resolveError.message.split('\n')[0]);
+      
+      // If resolve fails, just ensure Prisma client is generated with current schema
+      try {
+        console.log('🔧 Generating Prisma client with current schema...');
+        execSync('npx prisma generate', { stdio: 'inherit' });
+        console.log('✅ Prisma client generated successfully');
+      } catch (generateError) {
+        console.log('⚠️  Prisma generate failed:', generateError.message);
+      }
     }
   } else {
     console.log('⚠️  No DATABASE_URL found, skipping database setup');
   }
 } catch (error) {
   console.error('❌ Database setup failed:', error.message);
-  console.log('🔄 Continuing without database setup...');
+  console.log('🔄 Continuing without database setup - app should still work...');
   // Don't exit - allow the app to start even if DB setup fails
 }
 
