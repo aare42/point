@@ -226,6 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Import Goal Templates
+    const goalTemplateMapping: Record<string, string> = {}
     if (data.data.goalTemplate && Array.isArray(data.data.goalTemplate)) {
       try {
         for (const template of data.data.goalTemplate) {
@@ -258,8 +259,12 @@ export async function POST(request: NextRequest) {
               updatedAt: new Date(template.updatedAt)
             }
             
-            await prisma.goalTemplate.create({ data: transformedTemplate })
+            const newTemplate = await prisma.goalTemplate.create({ data: transformedTemplate })
+            goalTemplateMapping[template.id] = newTemplate.id
             importedCount++
+          } else {
+            // Map old ID to existing ID
+            goalTemplateMapping[template.id] = existingTemplate.id
           }
         }
         results.push(`${data.data.goalTemplate.length} goal templates processed`)
@@ -269,6 +274,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Import Vacancies  
+    const vacancyMapping: Record<string, string> = {}
     if (data.data.vacancy && Array.isArray(data.data.vacancy)) {
       try {
         for (const vacancy of data.data.vacancy) {
@@ -291,8 +297,12 @@ export async function POST(request: NextRequest) {
               updatedAt: new Date(vacancy.updatedAt)
             }
             
-            await prisma.vacancy.create({ data: transformedVacancy })
+            const newVacancy = await prisma.vacancy.create({ data: transformedVacancy })
+            vacancyMapping[vacancy.id] = newVacancy.id
             importedCount++
+          } else {
+            // Map old ID to existing ID
+            vacancyMapping[vacancy.id] = existingVacancy.id
           }
         }
         results.push(`${data.data.vacancy.length} vacancies processed`)
@@ -481,6 +491,76 @@ export async function POST(request: NextRequest) {
         results.push(`${data.data.goalTopic.length} goal topics processed`)
       } catch (error) {
         results.push(`Goal topics import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+    }
+
+    // Import Vacancy Topics (junction table for vacancy-topic relationships)
+    if (data.data.vacancyTopic && Array.isArray(data.data.vacancyTopic)) {
+      try {
+        for (const vacancyTopic of data.data.vacancyTopic) {
+          const mappedVacancyId = vacancyMapping[vacancyTopic.vacancyId]
+          const mappedTopicId = topicMapping[vacancyTopic.topicId]
+          
+          // Skip if vacancy or topic doesn't exist in our mappings
+          if (!mappedVacancyId || !mappedTopicId) continue
+          
+          const existing = await prisma.vacancyTopic.findUnique({
+            where: {
+              vacancyId_topicId: {
+                vacancyId: mappedVacancyId,
+                topicId: mappedTopicId
+              }
+            }
+          })
+          
+          if (!existing) {
+            await prisma.vacancyTopic.create({ 
+              data: {
+                vacancyId: mappedVacancyId,
+                topicId: mappedTopicId
+              }
+            })
+            importedCount++
+          }
+        }
+        results.push(`${data.data.vacancyTopic.length} vacancy topics processed`)
+      } catch (error) {
+        results.push(`Vacancy topics import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+    }
+
+    // Import Goal Template Topics (junction table for goal template-topic relationships)
+    if (data.data.goalTemplateTopic && Array.isArray(data.data.goalTemplateTopic)) {
+      try {
+        for (const goalTemplateTopic of data.data.goalTemplateTopic) {
+          const mappedGoalTemplateId = goalTemplateMapping[goalTemplateTopic.goalTemplateId]
+          const mappedTopicId = topicMapping[goalTemplateTopic.topicId]
+          
+          // Skip if goal template or topic doesn't exist in our mappings
+          if (!mappedGoalTemplateId || !mappedTopicId) continue
+          
+          const existing = await prisma.goalTemplateTopic.findUnique({
+            where: {
+              goalTemplateId_topicId: {
+                goalTemplateId: mappedGoalTemplateId,
+                topicId: mappedTopicId
+              }
+            }
+          })
+          
+          if (!existing) {
+            await prisma.goalTemplateTopic.create({ 
+              data: {
+                goalTemplateId: mappedGoalTemplateId,
+                topicId: mappedTopicId
+              }
+            })
+            importedCount++
+          }
+        }
+        results.push(`${data.data.goalTemplateTopic.length} goal template topics processed`)
+      } catch (error) {
+        results.push(`Goal template topics import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
 

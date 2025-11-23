@@ -11,11 +11,65 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
-  pages: {
-    error: '/auth/error',
-  },
   callbacks: {
-    session: async ({ session, token }) => {
+    async signIn({ user, account, profile }) {
+      // Clean approach: Always allow sign-in and handle user creation/linking by email
+      if (account?.provider === 'google' && user?.email) {
+        try {
+          // Find or create user by email (primary key)
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email }
+          })
+          
+          if (existingUser) {
+            // User exists - ensure this Google account is linked
+            const existingAccount = await prisma.account.findFirst({
+              where: {
+                provider: 'google',
+                providerAccountId: account.providerAccountId
+              }
+            })
+            
+            if (!existingAccount) {
+              // Link this Google account to existing user
+              await prisma.account.create({
+                data: {
+                  userId: existingUser.id,
+                  type: account.type,
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                  access_token: account.access_token,
+                  token_type: account.token_type,
+                  expires_at: account.expires_at,
+                  refresh_token: account.refresh_token,
+                  scope: account.scope,
+                  id_token: account.id_token
+                }
+              })
+            }
+            
+            // Auto-promote your email to admin
+            if (user.email === 'pawlovtaras@gmail.com' && existingUser.role !== 'ADMIN') {
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: { 
+                  role: 'ADMIN',
+                  createdAt: new Date('2020-01-01') // Root admin
+                }
+              })
+            }
+          }
+          // If user doesn't exist, let Prisma adapter create it normally
+        } catch (error) {
+          console.error('SignIn callback error:', error)
+          // Continue with sign-in even if linking fails
+        }
+      }
+      
+      return true
+    },
+    
+    async session({ session, token }) {
       if (session?.user && token?.sub) {
         session.user.id = token.sub
         if (token.role) {
@@ -29,59 +83,35 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
-    jwt: async ({ user, token, trigger }) => {
-      if (user) {
-        token.uid = user.id
-        
-        // Auto-grant admin to specific email
-        if (user.email === 'pawlovtaras@gmail.com') {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { role: 'ADMIN' }
-          }).catch(() => {}) // Ignore errors if already admin
-          token.role = 'ADMIN'
-        }
-      }
-      
-      // Always check user status for existing tokens
-      if (token.sub) {
+    
+    async jwt({ user, token }) {
+      // Always fetch fresh user data from database
+      if (token?.email) {
         try {
           const dbUser = await prisma.user.findUnique({
-            where: { id: token.sub },
-            select: { role: true, isBlocked: true, email: true }
+            where: { email: token.email },
+            select: { id: true, role: true, isBlocked: true, email: true }
           })
+          
           if (dbUser) {
+            token.sub = dbUser.id
             token.role = dbUser.role
-            token.isBlocked = dbUser.isBlocked || false // Default to false if field doesn't exist
+            token.isBlocked = dbUser.isBlocked || false
             
-            // Auto-grant admin to specific email (also check here)
+            // Auto-promote your email to admin
             if (dbUser.email === 'pawlovtaras@gmail.com' && dbUser.role !== 'ADMIN') {
               await prisma.user.update({
-                where: { id: token.sub },
-                data: { role: 'ADMIN' }
-              }).catch(() => {})
+                where: { id: dbUser.id },
+                data: { 
+                  role: 'ADMIN',
+                  createdAt: new Date('2020-01-01')
+                }
+              })
               token.role = 'ADMIN'
             }
           }
         } catch (error) {
-          // Fallback for when isBlocked field doesn't exist yet (during migration)
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.sub },
-            select: { role: true, email: true }
-          })
-          if (dbUser) {
-            token.role = dbUser.role
-            token.isBlocked = false // Default to false during migration period
-          
-            // Auto-grant admin to specific email (also check here)
-            if (dbUser.email === 'pawlovtaras@gmail.com' && dbUser.role !== 'ADMIN') {
-              await prisma.user.update({
-                where: { id: token.sub },
-                data: { role: 'ADMIN' }
-              }).catch(() => {})
-              token.role = 'ADMIN'
-            }
-          }
+          console.error('JWT callback error:', error)
         }
       }
       
