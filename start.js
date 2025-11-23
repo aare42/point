@@ -12,26 +12,20 @@ try {
   console.log('⚠️  Debug failed:', error.message);
 }
 
-// Set up database schema and handle manual migration state
+// Set up database schema safely (no data loss)
 try {
   console.log('📦 Setting up database schema...');
   console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Missing');
   
   if (process.env.DATABASE_URL) {
-    // Force database schema to match current Prisma schema
+    // Try to apply schema changes without data loss
     try {
-      console.log('🔧 Forcing database schema synchronization...');
-      execSync('npx prisma db push --force-reset --accept-data-loss', { stdio: 'inherit' });
-      console.log('✅ Database schema forcefully synchronized');
+      console.log('🔧 Applying safe database schema changes...');
+      execSync('npx prisma db push', { stdio: 'inherit' });
+      console.log('✅ Database schema updated safely');
     } catch (pushError) {
-      console.log('⚠️  Database force push failed, trying regular push:', pushError.message.split('\n')[0]);
-      
-      try {
-        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-        console.log('✅ Database schema synchronized with regular push');
-      } catch (regularPushError) {
-        console.log('⚠️  All database push attempts failed');
-      }
+      console.log('⚠️  Database push failed, continuing anyway:', pushError.message.split('\n')[0]);
+      // Continue without failing - existing database might be fine
     }
     
     // Generate Prisma client with current schema
@@ -51,10 +45,10 @@ try {
   // Don't exit - allow the app to start even if DB setup fails
 }
 
-// Seed database in development or if explicitly enabled
+// Only seed database if explicitly enabled (not on Railway by default)
 const shouldSeed = process.env.NODE_ENV === 'development' || 
-                  process.env.ENABLE_SEEDING === 'true' ||
-                  process.env.RAILWAY_ENVIRONMENT; // Enable on Railway
+                  process.env.ENABLE_SEEDING === 'true';
+                  // Removed automatic Railway seeding to preserve production data
 
 if (shouldSeed) {
   try {
