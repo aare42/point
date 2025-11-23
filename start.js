@@ -12,15 +12,32 @@ try {
   console.log('⚠️  Debug failed:', error.message);
 }
 
-// Set up database schema
+// Set up database schema and handle manual migration state
 try {
   console.log('📦 Setting up database schema...');
   console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Missing');
   
   if (process.env.DATABASE_URL) {
-    // Use db push instead of migrate for clean PostgreSQL setup
-    execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-    console.log('✅ Database schema created successfully');
+    // First, try to resolve the manually applied migration
+    try {
+      console.log('🔧 Resolving manually applied migration...');
+      execSync('npx prisma migrate resolve --applied 20251123082909_add_user_blocking', { stdio: 'inherit' });
+      console.log('✅ Migration state resolved');
+    } catch (resolveError) {
+      console.log('⚠️  Migration resolve failed (might be already resolved):', resolveError.message);
+    }
+    
+    // Then deploy any pending migrations
+    try {
+      console.log('🚀 Deploying migrations...');
+      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+      console.log('✅ Migrations deployed successfully');
+    } catch (migrateError) {
+      console.log('⚠️  Migration deploy failed, trying db push...');
+      // Fallback to db push if migrations fail
+      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+      console.log('✅ Database schema created with db push');
+    }
   } else {
     console.log('⚠️  No DATABASE_URL found, skipping database setup');
   }
