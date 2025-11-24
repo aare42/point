@@ -150,14 +150,56 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(topic, { status: 201 })
   } catch (error) {
     console.error('Error creating topic:', error)
-    if (error instanceof Error && 'code' in error) {
+    
+    // Handle Zod validation errors
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ZodError') {
+      console.error('Zod validation error:', (error as any).errors)
       return NextResponse.json(
-        { error: 'Validation failed', details: error.message },
+        { 
+          error: 'Validation failed', 
+          details: (error as any).errors,
+          message: 'Please check your input data'
+        },
         { status: 400 }
       )
     }
+    
+    // Handle Prisma errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('Prisma error:', error)
+      const prismaError = error as any
+      
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'A topic with this slug already exists' },
+          { status: 400 }
+        )
+      }
+      
+      if (prismaError.code === 'P2003') {
+        return NextResponse.json(
+          { error: 'Invalid prerequisite ID provided' },
+          { status: 400 }
+        )
+      }
+      
+      return NextResponse.json(
+        { 
+          error: 'Database error', 
+          details: prismaError.message,
+          code: prismaError.code 
+        },
+        { status: 400 }
+      )
+    }
+    
+    // Generic error
     return NextResponse.json(
-      { error: 'Failed to create topic' },
+      { 
+        error: 'Failed to create topic',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
