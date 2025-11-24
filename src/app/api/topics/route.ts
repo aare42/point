@@ -87,6 +87,21 @@ export async function POST(req: NextRequest) {
     
     const { prerequisiteIds, ...topicData } = validatedData
     
+    // Convert plain strings to multilingual format for database storage
+    const convertToMultilingual = (value: string | Record<string, string>) => {
+      if (typeof value === 'string') {
+        return JSON.stringify({ uk: value })
+      }
+      return JSON.stringify(value)
+    }
+    
+    const dbTopicData = {
+      ...topicData,
+      name: convertToMultilingual(topicData.name as any),
+      description: topicData.description ? convertToMultilingual(topicData.description as any) : null,
+      keypoints: convertToMultilingual(topicData.keypoints as any)
+    }
+    
     if (prerequisiteIds?.includes(undefined as any)) {
       return NextResponse.json(
         { error: 'Invalid prerequisite IDs' },
@@ -111,7 +126,7 @@ export async function POST(req: NextRequest) {
     }
 
     const existingTopic = await prisma.topic.findUnique({
-      where: { slug: topicData.slug },
+      where: { slug: dbTopicData.slug },
     })
 
     if (existingTopic) {
@@ -123,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     const topic = await prisma.topic.create({
       data: {
-        ...topicData,
+        ...dbTopicData,
         authorId: authResult.sub!,
         prerequisites: prerequisiteIds
           ? {
