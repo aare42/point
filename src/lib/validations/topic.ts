@@ -16,6 +16,7 @@ export const createTopicSchema = z.object({
     z.record(z.string(), z.string().min(1, 'Key points are required'))
   ]),
   prerequisiteIds: z.array(z.string()).optional(),
+  treeId: z.string().nullable().optional(),
 })
 
 export const updateTopicSchema = createTopicSchema.partial().extend({

@@ -7,6 +7,12 @@ import { TopicType } from '@prisma/client'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { getLocalizedText } from '@/lib/utils/multilingual'
 
+interface KnowledgeTree {
+  id: string
+  name: string
+  slug: string
+}
+
 interface Topic {
   id: string
   name: any // Multilingual
@@ -14,6 +20,8 @@ interface Topic {
   type: TopicType
   description?: any // Multilingual
   keypoints: any // Multilingual
+  treeId?: string | null
+  tree?: KnowledgeTree | null
   prerequisites: {
     prerequisite: {
       id: string
@@ -38,6 +46,7 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [availableTopics, setAvailableTopics] = useState<TopicOption[]>([])
+  const [trees, setTrees] = useState<KnowledgeTree[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<TopicType | 'ALL'>('ALL')
   const [formData, setFormData] = useState({
@@ -47,11 +56,13 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
     description: '',
     keypoints: '',
     prerequisiteIds: [] as string[],
+    treeId: null as string | null,
   })
 
   useEffect(() => {
     fetchTopic()
     fetchAvailableTopics()
+    fetchTrees()
   }, [resolvedParams.id])
 
   const fetchTopic = async () => {
@@ -67,6 +78,7 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
         description: getLocalizedText(topic.description, language, ''),
         keypoints: getLocalizedText(topic.keypoints, language, ''),
         prerequisiteIds: topic.prerequisites.map(p => p.prerequisite.id),
+        treeId: topic.treeId || null,
       })
     } catch (error) {
       alert('Failed to load topic')
@@ -81,13 +93,18 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
       const response = await fetch('/api/topics')
       if (response.ok) {
         const topics = await response.json()
-        setAvailableTopics(
-          topics.filter((t: any) => t.id !== resolvedParams.id)
-        )
+        setAvailableTopics(topics.filter((t: any) => t.id !== resolvedParams.id))
       }
     } catch (error) {
       console.error('Failed to fetch topics:', error)
     }
+  }
+
+  const fetchTrees = async () => {
+    try {
+      const res = await fetch('/api/knowledge-trees')
+      if (res.ok) setTrees(await res.json())
+    } catch {}
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -220,20 +237,36 @@ export default function EditTopicPage({ params }: { params: Promise<{ id: string
           </div>
         </div>
 
-        <div>
-          <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-            Type *
-          </label>
-          <select
-            id="type"
-            value={formData.type}
-            onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as TopicType }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="THEORY">Theory</option>
-            <option value="PRACTICE">Practice</option>
-            <option value="PROJECT">Project</option>
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+              Type *
+            </label>
+            <select
+              id="type"
+              value={formData.type}
+              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as TopicType }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="THEORY">Theory</option>
+              <option value="PRACTICE">Practice</option>
+              <option value="PROJECT">Project</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">🌳 Knowledge Tree</label>
+            <select
+              value={formData.treeId || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, treeId: e.target.value || null }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">— Unassigned —</option>
+              {trees.map(tree => (
+                <option key={tree.id} value={tree.id}>{tree.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div>

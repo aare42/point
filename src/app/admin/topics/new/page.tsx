@@ -12,10 +12,17 @@ interface TopicOption {
   type: TopicType
 }
 
+interface KnowledgeTree {
+  id: string
+  name: string
+  slug: string
+}
+
 export default function NewTopicPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [availableTopics, setAvailableTopics] = useState<TopicOption[]>([])
+  const [trees, setTrees] = useState<KnowledgeTree[]>([])
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -23,60 +30,54 @@ export default function NewTopicPage() {
     description: '',
     keypoints: '',
     prerequisiteIds: [] as string[],
+    treeId: '' as string | null,
   })
 
   useEffect(() => {
     fetchAvailableTopics()
+    fetchTrees()
   }, [])
 
   const fetchAvailableTopics = async () => {
     try {
       const response = await fetch('/api/topics')
-      if (response.ok) {
-        const topics = await response.json()
-        setAvailableTopics(topics)
-      }
-    } catch (error) {
-      console.error('Failed to fetch topics:', error)
-    }
+      if (response.ok) setAvailableTopics(await response.json())
+    } catch {}
   }
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim()
+  const fetchTrees = async () => {
+    try {
+      const res = await fetch('/api/knowledge-trees')
+      if (res.ok) setTrees(await res.json())
+    } catch {}
   }
+
+  const generateSlug = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim()
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value
     setFormData(prev => ({
       ...prev,
       name,
-      slug: prev.slug === '' ? generateSlug(name) : prev.slug
+      slug: prev.slug === '' ? generateSlug(name) : prev.slug,
     }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
+      const payload = { ...formData, treeId: formData.treeId || null }
       const response = await fetch('/api/topics', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
-
       if (!response.ok) {
         const error = await response.json()
         throw new Error(error.error || 'Failed to create topic')
       }
-
       router.push('/admin/topics')
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to create topic')
@@ -90,33 +91,25 @@ export default function NewTopicPage() {
       ...prev,
       prerequisiteIds: prev.prerequisiteIds.includes(topicId)
         ? prev.prerequisiteIds.filter(id => id !== topicId)
-        : [...prev.prerequisiteIds, topicId]
+        : [...prev.prerequisiteIds, topicId],
     }))
   }
 
   return (
     <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Create New Topic</h1>
-          <Link
-            href="/admin/topics"
-            className="text-gray-600 hover:text-gray-900"
-          >
-            Back to Topics
-          </Link>
-        </div>
+      <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Create New Topic</h1>
+        <Link href="/admin/topics" className="text-gray-600 hover:text-gray-900">
+          Back to Topics
+        </Link>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-              Name *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
             <input
               type="text"
-              id="name"
               value={formData.name}
               onChange={handleNameChange}
               required
@@ -126,12 +119,9 @@ export default function NewTopicPage() {
           </div>
 
           <div>
-            <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-2">
-              Slug *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Slug *</label>
             <input
               type="text"
-              id="slug"
               value={formData.slug}
               onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
               required
@@ -143,28 +133,43 @@ export default function NewTopicPage() {
           </div>
         </div>
 
-        <div>
-          <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-            Type *
-          </label>
-          <select
-            id="type"
-            value={formData.type}
-            onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as TopicType }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="THEORY">Theory</option>
-            <option value="PRACTICE">Practice</option>
-            <option value="PROJECT">Project</option>
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Type *</label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as TopicType }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="THEORY">Theory</option>
+              <option value="PRACTICE">Practice</option>
+              <option value="PROJECT">Project</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">🌳 Knowledge Tree</label>
+            <select
+              value={formData.treeId || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, treeId: e.target.value || null }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">— Unassigned —</option>
+              {trees.map(tree => (
+                <option key={tree.id} value={tree.id}>{tree.name}</option>
+              ))}
+            </select>
+            {trees.length === 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                <Link href="/admin/knowledge-trees" className="text-indigo-600 hover:underline">Create a knowledge tree</Link> first
+              </p>
+            )}
+          </div>
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-            Description
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
           <textarea
-            id="description"
             rows={3}
             value={formData.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -174,11 +179,8 @@ export default function NewTopicPage() {
         </div>
 
         <div>
-          <label htmlFor="keypoints" className="block text-sm font-medium text-gray-700 mb-2">
-            Key Points *
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Key Points *</label>
           <textarea
-            id="keypoints"
             rows={4}
             value={formData.keypoints}
             onChange={(e) => setFormData(prev => ({ ...prev, keypoints: e.target.value }))}
@@ -191,9 +193,7 @@ export default function NewTopicPage() {
 
         {availableTopics.length > 0 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Prerequisites
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Prerequisites</label>
             <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto p-3">
               {availableTopics.filter(topic => topic.type !== 'PROJECT').map((topic) => (
                 <label key={topic.id} className="flex items-center mb-2">
@@ -204,7 +204,7 @@ export default function NewTopicPage() {
                     className="mr-2 rounded"
                   />
                   <span className="text-sm text-gray-700">
-                    {topic.name} 
+                    {topic.name}
                     <span className="text-gray-500 ml-1">({topic.type})</span>
                   </span>
                 </label>

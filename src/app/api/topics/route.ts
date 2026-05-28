@@ -9,10 +9,16 @@ export async function GET(request: Request) {
     const url = new URL(request.url)
     const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
     
+    const treeId = url.searchParams.get('treeId')
+
     const topics = await prisma.topic.findMany({
+      where: treeId ? { treeId } : undefined,
       include: {
         author: {
           select: { id: true, name: true, email: true },
+        },
+        tree: {
+          select: { id: true, name: true, slug: true },
         },
         prerequisites: {
           include: {

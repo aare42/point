@@ -15,6 +15,9 @@ export async function GET(
         author: {
           select: { id: true, name: true, email: true },
         },
+        tree: {
+          select: { id: true, name: true, slug: true },
+        },
         prerequisites: {
           include: {
             prerequisite: {

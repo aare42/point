@@ -71,6 +71,18 @@ model User {
   authoredVacancies Vacancy[] @relation("AuthoredVacancies")
 }
 
+// Named domain-specific knowledge trees (e.g. "Web Development", "Data Science")
+model KnowledgeTree {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topics      Topic[]
+}
+
 // Core educational entities
 model Topic {
   id           String      @id @default(cuid())
@@ -80,10 +92,12 @@ model Topic {
   keypoints    Json        // Multilingual JSON: {"en": "key points", "uk": "ключові моменти"}
   description  Json?       // Multilingual: {"en": "description", "uk": "опис"}
   authorId     String
+  treeId       String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
   author            User                  @relation(fields: [authorId], references: [id])
+  tree              KnowledgeTree?        @relation(fields: [treeId], references: [id])
   prerequisites     TopicPrerequisite[]   @relation("TopicPrerequisites")
   dependents        TopicPrerequisite[]   @relation("PrerequisiteOf")
   studentTopics     StudentTopic[]

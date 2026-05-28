@@ -20,6 +20,29 @@ export default function AdminManagePage() {
 
       {/* Management Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Knowledge Trees Management */}
+        <Link
+          href="/admin/knowledge-trees"
+          className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+          <div className="p-8">
+            <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">🌳</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-emerald-700 transition-colors">
+              Knowledge Trees
+            </h2>
+            <p className="text-gray-600 group-hover:text-gray-800 transition-colors">
+              Organize topics into domain-specific knowledge trees
+            </p>
+            <div className="mt-6 flex items-center text-emerald-600 group-hover:text-emerald-800">
+              <span className="font-medium">Manage Trees</span>
+              <svg className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </Link>
+
         {/* Topics Management */}
         <Link
           href="/admin/topics"

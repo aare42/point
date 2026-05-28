@@ -23,9 +23,10 @@ Add short description comment to each non-obvious method and to each file.
 
 ### ✅ COMPLETED MODULES:
 1. **Authentication System**: Google OAuth2 with NextAuth.js, role-based access (USER, EDITOR, ADMIN)
-2. **Database**: Prisma with SQLite, full schema implemented with all entities and relationships
+2. **Database**: Prisma with PostgreSQL, full schema implemented with all entities and relationships
 3. **Topic Management**: Complete CRUD API + Admin Panel for managing topics with prerequisites
-4. **Admin Panel**: Full management interface for topics, courses, goals, users, and vacancies
+4. **Knowledge Tree Management**: Multiple named domain trees (e.g. "Web Dev", "Data Science") with topic assignment
+5. **Admin Panel**: Full management interface for topics, knowledge trees, courses, goals, users, and vacancies
 5. **Student Dashboard**: Progress tracking, goals, courses, and topic status management
 6. **Educator Dashboard**: Course creation, management, and student progress tracking
 7. **Employer Dashboard**: Vacancy posting and candidate discovery
@@ -307,3 +308,24 @@ npm start
 3. First user can promote themselves to ADMIN
 4. Use admin panel to create initial topics, courses, and goal templates
 5. Invite educators and employers to join
+
+## API Route Inventory
+
+### Admin API (`/api/admin/`)
+Legitimate routes only — all debug/fix/migration one-timers were removed in May 2026:
+- `analytics` — platform-wide stats
+- `courses`, `goal-templates`, `goals`, `topics`, `topics-status`, `users`, `vacancies` — CRUD management
+- `knowledge-trees` — CRUD for named domain trees; `knowledge-trees/init` creates "General" tree + assigns orphaned topics
+- `promote`, `emergency-promote` — admin role management (keep `emergency-promote` for lockout recovery)
+- `export-json`, `import-json` — data backup and migration tools (actively useful)
+- `seed` — initial data population
+
+**Do not re-add** debug/fix/one-time endpoints. If a production data fix is needed, write a proper migration script or a temporary admin endpoint that gets removed immediately after use.
+
+### Root API (`/api/`)
+- `auth` — NextAuth
+- `courses`, `goal-templates`, `goals`, `topics`, `vacancies` — public/student-facing reads; `topics` supports `?treeId=` filter
+- `knowledge-trees` — public GET for populating tree dropdowns
+- `educator`, `employer`, `student` — role-specific endpoints
+- `health` — Railway health check (keep)
+- `db-init`, `setup` — may be stale, review before next cleanup
