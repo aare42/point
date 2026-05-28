@@ -76,6 +76,7 @@ model KnowledgeTree {
   name        String   @unique
   slug        String   @unique
   description String?
+  isActive    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

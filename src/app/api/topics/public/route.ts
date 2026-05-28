@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getLocalizedText } from '@/lib/utils/multilingual'
+import { buildActiveTreeFilter } from '@/lib/utils/activeTreeFilter'
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url)
     const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
-    
+
+    const topicFilter = await buildActiveTreeFilter()
+
     const topics = await prisma.topic.findMany({
+      where: topicFilter,
       include: {
         prerequisites: {
           include: {

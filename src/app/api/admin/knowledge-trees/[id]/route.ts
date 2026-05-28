@@ -58,6 +58,32 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authResult = await withAuth(req, ['ADMIN'])
+  if (authResult instanceof Response) return authResult
+
+  try {
+    const { id } = await params
+    const { isActive } = await req.json()
+
+    const tree = await prisma.knowledgeTree.update({
+      where: { id },
+      data: { isActive: Boolean(isActive) },
+      include: { _count: { select: { topics: true } } },
+    })
+    return NextResponse.json(tree)
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return NextResponse.json({ error: 'Tree not found' }, { status: 404 })
+    }
+    console.error('Error toggling tree:', error)
+    return NextResponse.json({ error: 'Failed to update tree' }, { status: 500 })
+  }
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

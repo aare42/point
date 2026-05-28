@@ -4,12 +4,13 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { getLocalizedText } from '@/lib/utils/multilingual'
+import { buildActiveTreeFilter } from '@/lib/utils/activeTreeFilter'
 
 // GET - fetch all topics with student's status
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -17,8 +18,10 @@ export async function GET(request: Request) {
     const url = new URL(request.url)
     const language = (url.searchParams.get('lang') || 'en') as 'en' | 'uk'
 
+    const topicFilter = await buildActiveTreeFilter()
 
     const topics = await prisma.topic.findMany({
+      where: topicFilter,
       select: {
         id: true,
         name: true,
